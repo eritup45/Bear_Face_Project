@@ -1,5 +1,6 @@
 import face_recognition
 import sqlite3
+import time
 from encode import convert_list
 
 def my_compare(list_of_face_encodings, unknown_face_encodings):
@@ -35,6 +36,7 @@ def get_encodings(database):
     return list_of_face_encodings
 
 if __name__ == '__main__':
+    start = time.time()
     list_of_face_encodings = get_encodings('demo.db')
 
     # Read image 
@@ -42,4 +44,6 @@ if __name__ == '__main__':
     unknown_face_encoding = face_recognition.face_encodings(unknown_picture)[0]
 
     my_compare(list_of_face_encodings, unknown_face_encoding)
+    end = time.time()
+    print('Time: ', start - end)
     
