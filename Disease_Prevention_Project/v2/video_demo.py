@@ -11,8 +11,8 @@ if __name__ == '__main__':
     # Read image
     video_capture = cv2.VideoCapture(0)
     process_this_frame = True
-    buffer = []
     prev_encoding = None
+    buffer_frame_count = 20
     prev_locations = []
     prev_encodings = []
     time_dict = {}  # record {id: leaving_time}
@@ -26,6 +26,12 @@ if __name__ == '__main__':
             face_locations = face_recognition.face_locations(rgb_small_frame)
             face_encodings = face_recognition.face_encodings(
                 rgb_small_frame, face_locations)
+            if len(prev_locations) < buffer_frame_count:
+                prev_locations.append(face_locations)
+                prev_encodings.append(face_encodings)
+            else:
+                prev_locations[0:] = prev_locations[1:] + face_locations
+                prev_locations[0:] = prev_locations[1:] + face_locations
             results = []
             for face_encoding in face_encodings:
                 results.append(find_closest(
@@ -62,8 +68,9 @@ if __name__ == '__main__':
             # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
             if (now - time_dict.setdefault(user_profile_list[id][2], dt.datetime.min))\
                     .total_seconds() > 10.0:
-                pass
+                print(id)
                 # send to database
+            time_dict[id] = now
 
         cv2.imshow('Video', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
