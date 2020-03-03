@@ -4,6 +4,7 @@ from my_compare import get_encodings, find_closest
 import face_recognition
 import datetime as dt
 
+
 def mean_of_face(prev_encodings):
     for i, data in enumerate(prev_encoding):
         print(i, data)
@@ -31,7 +32,7 @@ if __name__ == '__main__':
             face_locations = face_recognition.face_locations(rgb_small_frame)
             face_encodings = face_recognition.face_encodings(
                 rgb_small_frame, face_locations)
-                if len(prev_locations) < buffer_frame_count:
+            if len(prev_locations) < buffer_frame_count:
                 prev_locations.append(face_locations)
                 prev_encodings.append(face_encodings)
             else:
