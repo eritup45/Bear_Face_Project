@@ -26,7 +26,7 @@ if __name__ == '__main__':
             face_locations = face_recognition.face_locations(rgb_small_frame)
             face_encodings = face_recognition.face_encodings(
                 rgb_small_frame, face_locations)
-            if len(prev_locations) < buffer_frame_count:
+                if len(prev_locations) < buffer_frame_count:
                 prev_locations.append(face_locations)
                 prev_encodings.append(face_encodings)
             else:
@@ -41,6 +41,7 @@ if __name__ == '__main__':
                 #         [prev_face_encoding], face_encoding))
                 # prev_face_encoding = face_encoding
 
+        # For every two frames, Skip one frame.
         process_this_frame = not process_this_frame
         for (top, right, bottom, left), (id, min_distance) \
                 in zip(face_locations, results):
@@ -68,7 +69,7 @@ if __name__ == '__main__':
             # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
             if (now - time_dict.setdefault(user_profile_list[id][2], dt.datetime.min))\
                     .total_seconds() > 10.0:
-                print(id)
+                pass
                 # send to database
             time_dict[id] = now
 
