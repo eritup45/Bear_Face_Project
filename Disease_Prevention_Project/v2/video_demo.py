@@ -4,6 +4,10 @@ from my_compare import get_encodings, find_closest
 import face_recognition
 import datetime as dt
 
+def mean_of_face(prev_encodings):
+    for i, data in enumerate(prev_encoding):
+        print(i, data)
+
 
 if __name__ == '__main__':
     user_profile_list = get_encodings('teacher.db')
@@ -12,10 +16,11 @@ if __name__ == '__main__':
     video_capture = cv2.VideoCapture(0)
     process_this_frame = True
     prev_encoding = None
-    buffer_frame_count = 20
+    buffer_frame_count = 12
     prev_locations = []
     prev_encodings = []
     time_dict = {}  # record {id: leaving_time}
+    cnt = 0
     while True:
         ret, frame = video_capture.read()
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
@@ -31,7 +36,7 @@ if __name__ == '__main__':
                 prev_encodings.append(face_encodings)
             else:
                 prev_locations[0:] = prev_locations[1:] + face_locations
-                prev_locations[0:] = prev_locations[1:] + face_locations
+                prev_encodings[0:] = prev_encodings[1:] + face_encodings
             results = []
             for face_encoding in face_encodings:
                 results.append(find_closest(
@@ -40,6 +45,13 @@ if __name__ == '__main__':
                 #     results.append(find_closest(
                 #         [prev_face_encoding], face_encoding))
                 # prev_face_encoding = face_encoding
+
+        if cnt % 12 == 0 and cnt is not 0:
+            # 對encoding取平均
+            mean_of_face(prev_encodings)
+            cnt = 0
+        else:
+            cnt = cnt + 1
 
         # For every two frames, Skip one frame.
         process_this_frame = not process_this_frame
