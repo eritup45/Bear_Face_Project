@@ -15,13 +15,14 @@ if __name__ == '__main__':
     prev_encoding = None
     prev_locations = []
     prev_encodings = []
-    time_dict = {}
+    time_dict = {}  # record {id: leaving_time}
     while True:
         ret, frame = video_capture.read()
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
         rgb_small_frame = small_frame[:, :, ::-1]
 
         if process_this_frame:
+            # encode the frame of camera
             face_locations = face_recognition.face_locations(rgb_small_frame)
             face_encodings = face_recognition.face_encodings(
                 rgb_small_frame, face_locations)
@@ -58,7 +59,8 @@ if __name__ == '__main__':
                 (left + 6, bottom - 6),
                 font, 1.0, (255, 255, 255), 1)
             now = datetime.now()
-            if (now - time_dict.setdefault(id, dt.datetime.min))\
+            # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
+            if (now - time_dict.setdefault(user_profile_list[id][2], dt.datetime.min))\
                     .total_seconds() > 10.0:
                 pass
                 # send to database
