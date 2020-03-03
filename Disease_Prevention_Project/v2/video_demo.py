@@ -5,9 +5,32 @@ import face_recognition
 import datetime as dt
 
 
-def mean_of_face(prev_encodings):
-    for i, data in enumerate(prev_encoding):
-        print(i, data)
+def mean_of_face(prev_encodings, prev_locations):
+    selected_bools = []
+    for i, x in enumerate(prev_encodings):
+        selected_bools.append([])
+        for y in x:
+            selected_bools[i].append(False)
+    for last_encoding, last_location\
+            in zip(prev_encodings[-1], prev_locations[-1]):
+        for encodings, locations, bools\
+                in zip(
+                    prev_encodings[:-1],
+                    prev_locations[:-1],
+                    selected_bools[:-1]
+                ):
+            closest = None
+            min_distance = 1.0
+            for i in range(len(encodings)):
+                distance = face_recognition.face_distance(
+                    [encodings[i]], last_encoding
+                )
+                if distance < min_distance and distance < 0.35\
+                        and bools[i] is False:
+                    closest = i
+                    min_distance = distance
+            if closest is not None:
+                bools[closest] = True
 
 
 if __name__ == '__main__':
@@ -36,8 +59,8 @@ if __name__ == '__main__':
                 prev_locations.append(face_locations)
                 prev_encodings.append(face_encodings)
             else:
-                prev_locations[0:] = prev_locations[1:] + face_locations
-                prev_encodings[0:] = prev_encodings[1:] + face_encodings
+                prev_locations[0:] = prev_locations[1:] + [face_locations]
+                prev_encodings[0:] = prev_encodings[1:] + [face_encodings]
             results = []
             for face_encoding in face_encodings:
                 results.append(find_closest(
@@ -49,7 +72,7 @@ if __name__ == '__main__':
 
         if cnt % 12 == 0 and cnt is not 0:
             # 對encoding取平均
-            mean_of_face(prev_encodings)
+            mean_of_face(prev_encodings, prev_locations)
             cnt = 0
         else:
             cnt = cnt + 1
