@@ -44,13 +44,13 @@ def same_face_indices(prev_encodings, prev_locations):
     return same_indices
 
 
-def draw_results(locations, results):
+def draw_results(locations, results, scale=2):
     for (top, right, bottom, left), (id, min_distance) \
             in zip(locations, results):
-        top *= 4
-        right *= 4
-        bottom *= 4
-        left *= 4
+        top *= scale
+        right *= scale
+        bottom *= scale
+        left *= scale
 
         cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     results = []
     while True:
         _, frame = video_capture.read()
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         rgb_small_frame = small_frame[:, :, ::-1]
 
         # For every two frames, Skip one frame.
@@ -128,6 +128,9 @@ if __name__ == '__main__':
         frame_count += 1
 
         draw_results(locations, results)
+        cv2.imshow('Video', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
         for id, _ in results:
             now = datetime.now()
@@ -139,7 +142,3 @@ if __name__ == '__main__':
                 # send to database
                 pass
             time_dict[user_id] = now
-
-        cv2.imshow('Video', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
