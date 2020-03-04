@@ -14,7 +14,7 @@ def find_closest(list_of_face_encodings, unknown_face_encoding):
     distances = face_recognition.face_distance(
         list_of_face_encodings, unknown_face_encoding)
     min_distance = min(distances)
-    id = distances.index(min_distance)
+    id = distances.argmin()
     return id, min_distance
 
 
