@@ -3,34 +3,49 @@ from datetime import datetime
 from my_compare import get_encodings, find_closest
 import face_recognition
 import datetime as dt
+from collections import Counter
 
 
-def mean_of_face(prev_encodings, prev_locations):
+def same_face_indices(prev_encodings, prev_locations):
     selected_bools = []
-    for i, x in enumerate(prev_encodings):
+    for col, x in enumerate(prev_encodings):
         selected_bools.append([])
         for y in x:
-            selected_bools[i].append(False)
-    for last_encoding, last_location\
-            in zip(prev_encodings[-1], prev_locations[-1]):
-        for encodings, locations, bools\
-                in zip(
+            selected_bools[col].append(False)
+    same_indices = [[] for x in range(len(prev_encodings[-1]))]
+    for i, (last_encoding, last_location, indices) \
+            in enumerate(zip(
+                prev_encodings[-1],
+                prev_locations[-1],
+                same_indices
+            )):
+        for row, (encodings, locations, bools)\
+                in enumerate(zip(
                     prev_encodings[:-1],
                     prev_locations[:-1],
                     selected_bools[:-1]
-                ):
+                )):
             closest = None
             min_distance = 1.0
-            for i in range(len(encodings)):
+            for col in range(len(encodings)):
                 distance = face_recognition.face_distance(
-                    [encodings[i]], last_encoding
+                    [encodings[col]], last_encoding
                 )
                 if distance < min_distance and distance < 0.35\
-                        and bools[i] is False:
-                    closest = i
+                        and bools[col] is False:
+                    closest = col
                     min_distance = distance
             if closest is not None:
                 bools[closest] = True
+                indices.append((row, closest))
+        indices.append((len(prev_encodings) - 1, i))
+    return same_indices
+
+    # count which face appear most
+    # index that face appear the most
+    # face_counts = [len(prev_encodings[-1][0])] * len(prev_encodings[-1])
+    # face_count[closest] += 1
+    # idx = face_count.index(max(face_count))
 
 
 if __name__ == '__main__':
@@ -40,11 +55,14 @@ if __name__ == '__main__':
     video_capture = cv2.VideoCapture(0)
     process_this_frame = True
     prev_encoding = None
-    buffer_frame_count = 12
+    frame_buffer_size = 20
     prev_locations = []
     prev_encodings = []
+    prev_matched_ids = []
+    prev_distances = []
     time_dict = {}  # record {id: leaving_time}
-    cnt = 0
+    frame_count = 0
+    results = []
     while True:
         ret, frame = video_capture.read()
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
@@ -55,27 +73,42 @@ if __name__ == '__main__':
             face_locations = face_recognition.face_locations(rgb_small_frame)
             face_encodings = face_recognition.face_encodings(
                 rgb_small_frame, face_locations)
-            if len(prev_locations) < buffer_frame_count:
+            matched_ids = []
+            distances = []
+            for encoding in face_encodings:
+                id, distance = find_closest(known_face_encodings, encoding)
+                matched_ids.append(id)
+                distances.append(distance)
+            if len(prev_locations) < frame_buffer_size:
                 prev_locations.append(face_locations)
                 prev_encodings.append(face_encodings)
+                prev_matched_ids.append(matched_ids)
+                prev_distances.append(distances)
             else:
                 prev_locations[0:] = prev_locations[1:] + [face_locations]
                 prev_encodings[0:] = prev_encodings[1:] + [face_encodings]
-            results = []
-            for face_encoding in face_encodings:
-                results.append(find_closest(
-                    known_face_encodings, face_encoding))
-                # if prev_face_encoding is not None:
-                #     results.append(find_closest(
-                #         [prev_face_encoding], face_encoding))
-                # prev_face_encoding = face_encoding
+                prev_matched_ids[0:] = prev_matched_ids[1:] + [matched_ids]
+                prev_distances[0:] = prev_distances[1:] + [distances]
 
-        if cnt % 12 == 0 and cnt is not 0:
-            # 對encoding取平均
-            mean_of_face(prev_encodings, prev_locations)
-            cnt = 0
-        else:
-            cnt = cnt + 1
+        if frame_count % frame_buffer_size == frame_buffer_size - 1:
+            print(frame_count)
+            # if True:
+            # 取最符合的encoding
+            indices_list = same_face_indices(prev_encodings, prev_locations)
+            results = []
+            for face_encoding, face_location, indices in zip(
+                    face_encodings, face_locations, indices_list):
+                ids = list(map(
+                    (lambda index: prev_matched_ids[index[0]][index[1]]),
+                    indices
+                ))
+                id = Counter(ids).most_common(1)[0][0]
+                distance = face_recognition.face_distance(
+                    known_face_encodings[id: id+1], face_encoding)[0]
+                results.append(
+                    (id, distance)
+                )
+        frame_count += 1
 
         # For every two frames, Skip one frame.
         process_this_frame = not process_this_frame
@@ -103,7 +136,8 @@ if __name__ == '__main__':
                 font, 1.0, (255, 255, 255), 1)
             now = datetime.now()
             # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
-            if (now - time_dict.setdefault(user_profile_list[id][2], dt.datetime.min))\
+            if (now - time_dict.setdefault(
+                user_profile_list[id][2], dt.datetime.min))\
                     .total_seconds() > 10.0:
                 pass
                 # send to database
