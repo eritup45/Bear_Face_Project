@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
         # For every two frames, Skip one frame.
         if frame_count % 2 == 0:
-            new_locations = face_recognition.locations(rgb_small_frame)
+            new_locations = face_recognition.face_locations(rgb_small_frame)
             if len(new_locations) > 0 or (
                 dt.datetime.now() - last_detected_time
             ).total_seconds() > 2.0:
