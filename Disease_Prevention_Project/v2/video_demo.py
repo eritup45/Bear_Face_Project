@@ -6,6 +6,8 @@ import datetime as dt
 from collections import Counter
 
 
+# Get the indices of faces in a list of frames which
+#  corresponding to each face in the last frame.
 def same_face_indices(prev_encodings, prev_locations):
     selected_bools = []
     for col, x in enumerate(prev_encodings):
@@ -40,12 +42,6 @@ def same_face_indices(prev_encodings, prev_locations):
                 indices.append((row, closest))
         indices.append((len(prev_encodings) - 1, i))
     return same_indices
-
-    # count which face appear most
-    # index that face appear the most
-    # face_counts = [len(prev_encodings[-1][0])] * len(prev_encodings[-1])
-    # face_count[closest] += 1
-    # idx = face_count.index(max(face_count))
 
 
 if __name__ == '__main__':
