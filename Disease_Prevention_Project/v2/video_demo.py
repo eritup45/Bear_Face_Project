@@ -19,6 +19,7 @@ def mean_of_face(prev_encodings, prev_locations):
                     prev_locations[:-1],
                     selected_bools[:-1]
                 ):
+                print('test')
             closest = None
             min_distance = 1.0
             for i in range(len(encodings)):
