@@ -1,12 +1,18 @@
 import sqlite3
+import os
+
+dirname = os.path.dirname(__file__)
+
 
 def Insert_Measure_Info(database, info):
     ID = str(info[0])
     Date = str(info[1])
-    conn = sqlite3.connect(database)
+    conn = sqlite3.connect(os.path.join(dirname, database))
     c = conn.cursor()
     c.execute("INSERT INTO Measure_Info (ID, Date) \
                     VALUES ('{}', '{}')".format(ID, Date))
+    # for row in c.execute('SELECT * FROM Measure_Info'):
+    # print(row)
     conn.commit()
     conn.close()
 

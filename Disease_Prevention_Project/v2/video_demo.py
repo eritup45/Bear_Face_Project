@@ -5,6 +5,7 @@ import face_recognition
 import datetime as dt
 from collections import Counter
 import itertools
+from Insert_Measure_Info import Insert_Measure_Info
 
 
 # Get the indices of faces in a list of frames which
@@ -71,7 +72,8 @@ def draw_results(locations, results, scale=2):
 
 
 if __name__ == '__main__':
-    user_profile_list = get_encodings('teacher.db')
+    database_name = './teacher.db'
+    user_profile_list = get_encodings(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
     video_capture = cv2.VideoCapture(0)
     prev_encoding = None
@@ -112,7 +114,6 @@ if __name__ == '__main__':
                 prev_distances[0:] = prev_distances[start:] + [distances]
 
         if frame_count % frame_buffer_size == frame_buffer_size - 1:
-            print(frame_count)
             # 取最符合的encoding
             indices_list = same_face_indices(prev_encodings, prev_locations)
             results = []
@@ -138,6 +139,7 @@ if __name__ == '__main__':
             if (now - time_dict.setdefault(
                 user_id, dt.datetime.min))\
                     .total_seconds() > 10.0:
-                # send to database
-                pass
+                Insert_Measure_Info(database_name, [user_id, now])
+                print(user_id)
+
             time_dict[user_id] = now
