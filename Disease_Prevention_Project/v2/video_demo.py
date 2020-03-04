@@ -4,6 +4,7 @@ from my_compare import get_encodings, find_closest
 import face_recognition
 import datetime as dt
 from collections import Counter
+import itertools
 
 
 # Get the indices of faces in a list of frames which
@@ -83,13 +84,13 @@ if __name__ == '__main__':
     last_detected_time = dt.datetime.min
     frame_count = 0
     results = []
-    while True:
+    for frame_count in itertools.count():
         _, frame = video_capture.read()
-        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        rgb_small_frame = small_frame[:, :, ::-1]
 
         # For every two frames, Skip one frame.
         if frame_count % 2 == 0:
+            small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+            rgb_small_frame = small_frame[:, :, ::-1]
             new_locations = face_recognition.face_locations(rgb_small_frame)
             if len(new_locations) > 0 or (
                 dt.datetime.now() - last_detected_time
@@ -112,7 +113,6 @@ if __name__ == '__main__':
 
         if frame_count % frame_buffer_size == frame_buffer_size - 1:
             print(frame_count)
-            # if True:
             # 取最符合的encoding
             indices_list = same_face_indices(prev_encodings, prev_locations)
             results = []
@@ -125,7 +125,6 @@ if __name__ == '__main__':
                 results.append(
                     (id, distance)
                 )
-        frame_count += 1
 
         draw_results(locations, results)
         cv2.imshow('Video', frame)
