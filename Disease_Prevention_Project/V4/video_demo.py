@@ -121,25 +121,23 @@ if __name__ == '__main__':
             results = []
             for encoding, indices in zip(
                     encodings, indices_list):
-                mean_encoding = np.mean(
-                    [prev_encodings[row][col] for row, col in indices],
-                    axis=0
-                )
-                id, distance = find_closest(
-                    known_face_encodings, mean_encoding
-                )
+                ids = [prev_matched_ids[row][col] for row, col in indices]
+                id = Counter(ids).most_common(1)[0][0]
+                distance = face_recognition.face_distance(
+                    known_face_encodings[id: id+1], encoding)[0]
                 results.append(
                     (id, distance)
                 )
-            # for encoding, indices in zip(
-            #         encodings, indices_list):
-            #     ids = [prev_matched_ids[row][col] for row, col in indices]
-            #     id = Counter(ids).most_common(1)[0][0]
-            #     distance = face_recognition.face_distance(
-            #         known_face_encodings[id: id+1], encoding)[0]
-            #     results.append(
-            #         (id, distance)
-            #     )
+                # mean_encoding = np.mean(
+                #     [prev_encodings[row][col] for row, col in indices],
+                #     axis=0
+                # )
+                # id, distance = find_closest(
+                #     known_face_encodings, mean_encoding
+                # )
+                # results.append(
+                #     (id, distance)
+                # )
 
         draw_results(locations, results)
         cv2.imshow('Video', frame)
@@ -149,11 +147,11 @@ if __name__ == '__main__':
         for id, _ in results:
             now = datetime.now()
             # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
-            user_id = user_profile_list[id][2]
+            user_id = user_profile_list[id][1]
             if (now - time_dict.setdefault(
                 user_id, dt.datetime.min))\
                     .total_seconds() > 10.0:
                 Insert_Measure_Info(database_name, [user_id, now])
-                print(user_id)
+                print(f'{user_profile_list[id][1]}:{user_profile_list[id][2]}')
 
             time_dict[user_id] = now

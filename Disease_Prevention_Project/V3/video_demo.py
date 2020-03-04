@@ -135,11 +135,11 @@ if __name__ == '__main__':
         for id, _ in results:
             now = datetime.now()
             # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
-            user_id = user_profile_list[id][2]
+            user_id = user_profile_list[id][1]
             if (now - time_dict.setdefault(
                 user_id, dt.datetime.min))\
                     .total_seconds() > 10.0:
                 Insert_Measure_Info(database_name, [user_id, now])
-                print(user_id)
+                print(f'{user_profile_list[id][1]}:{user_profile_list[id][2]}')
 
             time_dict[user_id] = now
