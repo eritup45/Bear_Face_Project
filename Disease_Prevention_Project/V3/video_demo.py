@@ -132,14 +132,18 @@ if __name__ == '__main__':
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        for id, _ in results:
+        for id, min_distance in results:
             now = datetime.now()
+            if min_distance > 0.35:
+                user_id = 'guest'
+            else:
+                user_id = user_profile_list[id][2]
+               
             # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
-            user_id = user_profile_list[id][1]
             if (now - time_dict.setdefault(
                 user_id, dt.datetime.min))\
                     .total_seconds() > 10.0:
                 Insert_Measure_Info(database_name, [user_id, now])
-                print(f'{user_profile_list[id][1]}:{user_profile_list[id][2]}')
+                print(user_id)
 
             time_dict[user_id] = now
