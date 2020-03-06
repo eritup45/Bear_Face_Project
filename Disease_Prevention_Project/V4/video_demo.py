@@ -8,11 +8,11 @@ import itertools
 from Insert_Measure_Info import Insert_Measure_Info
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from pathlib import Path
+
 
 # Get the indices of faces in a list of frames which
 #  corresponding to each face in the last frame.
-
-
 def same_face_indices(prev_encodings, prev_locations):
     selected_bools = []
     for col, x in enumerate(prev_encodings):
@@ -86,7 +86,8 @@ if __name__ == '__main__':
     user_profile_list = get_encodings(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
     guest_encodings = []
-    _font = ImageFont.truetype('NotoSansCJK-Black.ttc', 20)
+    _font = ImageFont.truetype(
+        str(Path(__file__).parent.joinpath('NotoSansCJK-Regular222.ttc')), 20)
     prev_locations = []  # Previous face locations in buffered frames
     prev_encodings = []  # Previous face encodings in buffered frames
     # Indices of previous matched encodings in buffered frames

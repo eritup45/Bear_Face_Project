@@ -1,9 +1,8 @@
 import face_recognition
 import sqlite3
 from encode import convert_list
-import os
+from pathlib import Path
 
-dirname = os.path.dirname(__file__)
 
 # Return:
 # min_distance: smallest distance
@@ -20,8 +19,7 @@ def find_closest(list_of_face_encodings, unknown_face_encoding):
 
 def get_encodings(database):
     user_profile_list = []
-    conn = sqlite3.connect(os.path.join(dirname, database)
-                           )
+    conn = sqlite3.connect(str(Path(__file__).parent.joinpath(database)))
     c = conn.cursor()
     # 印出 User_Profile 中的資料，並以Number欄位排序
     for en_face, ID, Name in c.execute(
