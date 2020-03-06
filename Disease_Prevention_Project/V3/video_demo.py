@@ -6,10 +6,13 @@ import datetime as dt
 from collections import Counter
 import itertools
 from Insert_Measure_Info import Insert_Measure_Info
-
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 
 # Get the indices of faces in a list of frames which
 #  corresponding to each face in the last frame.
+
+
 def same_face_indices(prev_encodings, prev_locations):
     selected_bools = []
     for col, x in enumerate(prev_encodings):
@@ -46,29 +49,32 @@ def same_face_indices(prev_encodings, prev_locations):
     return same_indices
 
 
-def draw_results(locations, results, scale=2):
-    for (top, right, bottom, left), (id, min_distance) \
-            in zip(locations, results):
+def draw_results(frame, locations, results, user_ids, scale=2):
+    rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    for (top, right, bottom, left), (_, min_distance), user_id \
+            in zip(locations, results, user_ids):
         top *= scale
         right *= scale
         bottom *= scale
         left *= scale
 
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+        draw = ImageDraw.Draw(rgb_frame)
+        rectColor = (255, 0, 0)
+        draw.rectangle([(left, top), (right, bottom)],
+                       fill=None, outline=rectColor, width=5)
 
-        cv2.rectangle(frame, (left, bottom - 70),
-                      (right, bottom), (0, 0, 255), cv2.FILLED)
-        font = cv2.FONT_HERSHEY_DUPLEX
-        cv2.putText(
-            frame,
-            str(f'{id}, Diff: {min_distance: > .4f}'),
-            (left + 6, bottom - 42),
-            font, 1.0, (255, 255, 255), 1)
-        cv2.putText(
-            frame,
-            str(f' {"Not Matched" if min_distance > 0.35 else "Matched"}'),
-            (left + 6, bottom - 6),
-            font, 1.0, (255, 255, 255), 1)
+        draw.rectangle([(left, bottom - 70), (right, bottom)],
+                       fill=rectColor, outline=None)
+        font = _font
+        textColor = (255, 255, 255)
+        draw.text((left + 6, bottom - 72),
+                  str(f'{user_id}, Diff: {min_distance: > .4f}'),
+                  font=font, fill=textColor)
+        draw.text((left + 6, bottom - 36),
+                  str(f' {"Not Matched" if min_distance > 0.35 else "Matched"}'),
+                  font=font, fill=textColor)
+    result_frame = cv2.cvtColor(np.asarray(rgb_frame), cv2.COLOR_RGB2BGR)
+    return result_frame
 
 
 if __name__ == '__main__':
@@ -78,6 +84,8 @@ if __name__ == '__main__':
     video_capture = cv2.VideoCapture(0)
     prev_encoding = None
     frame_buffer_size = 20
+    _font = ImageFont.truetype('NotoSansCJK-Black.ttc', 20)
+    guest_count = 0
     prev_locations = []
     prev_encodings = []
     prev_matched_ids = []
@@ -86,6 +94,7 @@ if __name__ == '__main__':
     last_detected_time = dt.datetime.min
     frame_count = 0
     results = []
+    user_ids = []
     for frame_count in itertools.count():
         _, frame = video_capture.read()
 
@@ -113,11 +122,6 @@ if __name__ == '__main__':
                 prev_matched_ids[0:] = prev_matched_ids[start:] + [matched_ids]
                 prev_distances[0:] = prev_distances[start:] + [distances]
 
-        draw_results(locations, results)
-        cv2.imshow('Video', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
         if frame_count % frame_buffer_size == frame_buffer_size - 1:
             # 取最符合的encoding
             indices_list = same_face_indices(prev_encodings, prev_locations)
@@ -131,18 +135,26 @@ if __name__ == '__main__':
                 results.append(
                     (id, distance)
                 )
-            for id, min_distance in results:
+            user_ids = []
+            for i, (id, min_distance) in enumerate(results):
                 now = datetime.now()
-                if min_distance > 0.35:
-                    user_id = 'guest'
-                else:
+                if min_distance > 0.25:
+                    user_id = f'訪客{guest_count + 1}'
+                    guest_count += 1
+                    known_face_encodings.append(encodings[i])
+                elif id < len(user_profile_list):
                     user_id = user_profile_list[id][2]
-
-                # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
-                if (now - time_dict.setdefault(
-                    user_id, dt.datetime.min))\
-                        .total_seconds() > 10.0:
-                    Insert_Measure_Info(database_name, [user_id, now])
-                    print(user_id)
+                    # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
+                    if (now - time_dict.setdefault(
+                        user_id, dt.datetime.min))\
+                            .total_seconds() > 10.0:
+                        Insert_Measure_Info(database_name, [user_id, now])
+                        print(user_id)
 
                 time_dict[user_id] = now
+                user_ids.append(user_id)
+
+        result_frame = draw_results(frame, locations, results, user_ids)
+        cv2.imshow('Video', result_frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
