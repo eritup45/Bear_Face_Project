@@ -70,8 +70,9 @@ def draw_results(frame, locations, results, user_names, tolerance, scale=2):
         draw.text((left + 6, bottom - 72),
                   str(f'{user_name}, Diff: {min_distance: > .4f}'),
                   font=font, fill=textColor)
+        match_state = "Not Matched" if min_distance > tolerance else "Matched"
         draw.text((left + 6, bottom - 36),
-                  str(f' {"Not Matched" if min_distance > tolerance else "Matched"}'),
+                  str(f' {match_state}'),
                   font=font, fill=textColor)
     result_frame = cv2.cvtColor(np.asarray(rgb_frame), cv2.COLOR_RGB2BGR)
     return result_frame
@@ -91,7 +92,6 @@ if __name__ == '__main__':
     prev_matched_ids = []
     time_dict = {}  # {id: leaving_time}
     last_detected_time = dt.datetime.min
-    frame_count = 0
     results = []  # [[closest_id, distance], ...]
 
     guest_count = 0
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
         # Generate results every frame_buffer_size frames
         if frame_count % frame_buffer_size == frame_buffer_size - 1:
-            # 取最符合的encoding
+            # Get the indices of encodings that have the most matching
             indices_list = same_face_indices(prev_encodings, prev_locations)
             results = []
             for encoding, location, indices in zip(
@@ -141,7 +141,6 @@ if __name__ == '__main__':
                 )
             user_names = []
             for i, (id, min_distance) in enumerate(results):
-                now = datetime.now()
                 # Is new guest
                 if min_distance > tolerance:
                     user_name = f'訪客{guest_count + 1}'
@@ -151,14 +150,17 @@ if __name__ == '__main__':
                 # Is in database
                 elif id < len(user_profile_list):
                     user_name = user_profile_list[id][2]
-                    # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
-                    if (now - time_dict.setdefault(
-                        user_name, dt.datetime.min))\
-                            .total_seconds() > 10.0:
-                        Insert_Measure_Info(database_name, [user_name, now])
                 # Is old guest
                 else:
                     user_name = user_name_dict[id]
+
+                # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
+                now = datetime.now()
+                if (now - time_dict.setdefault(
+                    user_name, dt.datetime.min))\
+                        .total_seconds() > 10.0:
+                    Insert_Measure_Info(database_name, [user_name, now])
+                    print('寫入')
 
                 print(user_name)
                 time_dict[user_name] = now
