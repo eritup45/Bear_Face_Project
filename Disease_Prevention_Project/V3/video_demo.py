@@ -113,6 +113,11 @@ if __name__ == '__main__':
                 prev_matched_ids[0:] = prev_matched_ids[start:] + [matched_ids]
                 prev_distances[0:] = prev_distances[start:] + [distances]
 
+        draw_results(locations, results)
+        cv2.imshow('Video', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
         if frame_count % frame_buffer_size == frame_buffer_size - 1:
             # 取最符合的encoding
             indices_list = same_face_indices(prev_encodings, prev_locations)
@@ -126,24 +131,18 @@ if __name__ == '__main__':
                 results.append(
                     (id, distance)
                 )
+            for id, min_distance in results:
+                now = datetime.now()
+                if min_distance > 0.35:
+                    user_id = 'guest'
+                else:
+                    user_id = user_profile_list[id][2]
 
-        draw_results(locations, results)
-        cv2.imshow('Video', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
+                if (now - time_dict.setdefault(
+                    user_id, dt.datetime.min))\
+                        .total_seconds() > 10.0:
+                    Insert_Measure_Info(database_name, [user_id, now])
+                    print(user_id)
 
-        for id, min_distance in results:
-            now = datetime.now()
-            if min_distance > 0.35:
-                user_id = 'guest'
-            else:
-                user_id = user_profile_list[id][2]
-               
-            # 若判斷現在時間-人物最後偵測時間大於十秒，則判斷此人離場，將此人資料寫進資料庫
-            if (now - time_dict.setdefault(
-                user_id, dt.datetime.min))\
-                    .total_seconds() > 10.0:
-                Insert_Measure_Info(database_name, [user_id, now])
-                print(user_id)
-
-            time_dict[user_id] = now
+                time_dict[user_id] = now
