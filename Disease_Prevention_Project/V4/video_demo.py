@@ -121,9 +121,11 @@ if __name__ == '__main__':
                 for encoding in encodings:
                     id, distance = find_closest(known_face_encodings, encoding)
                     if distance > tolerance and len(guest_encodings) > 0:
-                        id, distance = find_closest(
+                        id2, distance2 = find_closest(
                             guest_encodings, encoding)
-                        id += len(known_face_encodings)
+                        id2 += len(known_face_encodings)
+                        if distance2 < distance:
+                            id, distance = id2, distance2
                     matched_ids.append(id)
                     distances.append(distance)
                 start = 0 if len(prev_locations) < frame_buffer_size else 1
@@ -154,6 +156,10 @@ if __name__ == '__main__':
                     id = len(known_face_encodings) + len(guest_encodings)
                     guest_count += 1
                     guest_encodings.append(encodings[i])
+                    if len(guest_encodings) > 1 and False not in (
+                        guest_encodings[-1] == guest_encodings[-2]
+                    ):
+                        print(456)
                 # Is in database
                 elif id < len(known_face_encodings):
                     user_name = user_profile_list[id][2]

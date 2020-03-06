@@ -7,8 +7,6 @@ from pathlib import Path
 # Return:
 # min_distance: smallest distance
 # id: the id of the min_distance
-
-
 def find_closest(list_of_face_encodings, unknown_face_encoding):
     distances = face_recognition.face_distance(
         list_of_face_encodings, unknown_face_encoding)
