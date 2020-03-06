@@ -85,6 +85,7 @@ if __name__ == '__main__':
     # [[en_face, ID, Name], ...]
     user_profile_list = get_encodings(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
+    guest_encodings = []
     _font = ImageFont.truetype('NotoSansCJK-Black.ttc', 20)
     prev_locations = []  # Previous face locations in buffered frames
     prev_encodings = []  # Previous face encodings in buffered frames
@@ -118,6 +119,10 @@ if __name__ == '__main__':
                 distances = []
                 for encoding in encodings:
                     id, distance = find_closest(known_face_encodings, encoding)
+                    if distance > tolerance and len(guest_encodings) > 0:
+                        id, distance = find_closest(
+                            guest_encodings, encoding)
+                        id += len(known_face_encodings)
                     matched_ids.append(id)
                     distances.append(distance)
                 start = 0 if len(prev_locations) < frame_buffer_size else 1
@@ -135,7 +140,8 @@ if __name__ == '__main__':
                 ids = [prev_matched_ids[row][col] for row, col in indices]
                 id = Counter(ids).most_common(1)[0][0]
                 distance = face_recognition.face_distance(
-                    known_face_encodings[id: id+1], encoding)[0]
+                    (known_face_encodings + guest_encodings)[id: id+1],
+                    encoding)[0]
                 results.append(
                     (id, distance)
                 )
@@ -144,11 +150,11 @@ if __name__ == '__main__':
                 # Is new guest
                 if min_distance > tolerance:
                     user_name = f'訪客{guest_count + 1}'
-                    id = len(known_face_encodings)
+                    id = len(known_face_encodings) + len(guest_encodings)
                     guest_count += 1
-                    known_face_encodings.append(encodings[i])
+                    guest_encodings.append(encodings[i])
                 # Is in database
-                elif id < len(user_profile_list):
+                elif id < len(known_face_encodings):
                     user_name = user_profile_list[id][2]
                 # Is old guest
                 else:
