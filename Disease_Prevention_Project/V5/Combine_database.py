@@ -8,7 +8,7 @@ def fetch_newest_temperature_db(database):
     c = conn.cursor()
     # Method 1
     # fetch the newset Date
-    for data in c.execute('SELECT MAX(Date), Temp, Status FROM newest_temperature'):
+    for data in c.execute('SELECT Temp_Index, MAX(Date), Temp, Status FROM newest_temperature'):
         pass
         # print(data)
 
@@ -21,17 +21,16 @@ def fetch_newest_temperature_db(database):
 
 # Ordered by Idx, Update Date, Temp, Status in Table Measure_Info
 # data: [Date, Temp, Status]
-
-
 def Update_Measure_Info(database, data):
     conn = sqlite3.connect(os.path.join(dirname, database))
-    Date = str(data[0])
-    Temp = float(data[1])
-    Status = int(data[2])
+    Temp_Index = int(data[0])
+    Date = str(data[1])
+    Temp = float(data[2])
+    Status = int(data[3])
     c = conn.cursor()
     c.execute("UPDATE Measure_Info\
-        SET Date = '{}', Temp = '{}', Status = '{}'\
-        WHERE Idx = (SELECT MAX(Idx) from Measure_Info)".format(Date, Temp, Status))
+        SET Temp_Index = '{}', Date = '{}', Temp = '{}', Status = '{}'\
+        WHERE Idx = (SELECT MAX(Idx) from Measure_Info)".format(Temp_Index, Date, Temp, Status))
     conn.commit()
     conn.close()
 
