@@ -2,6 +2,7 @@ import sqlite3
 import os
 dirname = os.path.dirname(__file__)
 
+
 def fetch_newest_temperature_db(database):
     conn = sqlite3.connect(os.path.join(dirname, database))
     c = conn.cursor()
@@ -20,6 +21,8 @@ def fetch_newest_temperature_db(database):
 
 # Ordered by Idx, Update Date, Temp, Status in Table Measure_Info
 # data: [Date, Temp, Status]
+
+
 def Update_Measure_Info(database, data):
     conn = sqlite3.connect(os.path.join(dirname, database))
     Date = str(data[0])
@@ -35,6 +38,8 @@ def Update_Measure_Info(database, data):
 # Just for testing
 # Insert Date, Temp, Status in Table newest_temperature
 # data: [[Date, Temp, Status], ...]
+
+
 def Insert_newest_temperature(database, data):
     conn = sqlite3.connect(os.path.join(dirname, database))
     for Date, Temp, Status in data:
@@ -44,6 +49,7 @@ def Insert_newest_temperature(database, data):
     conn.commit()
     conn.close()
 
+
 def main():
     database = 'teacher.db'
     data = fetch_newest_temperature_db(database)
@@ -51,8 +57,7 @@ def main():
     # data = [['2020-03-06 10:23:48.279110', 37.2, 1],
     #         ['2020-03-06 10:29:31.058381', 36.5, 0]]
     # Insert_newest_temperature(database,data)
-    
+
 
 if __name__ == '__main__':
     main()
-
