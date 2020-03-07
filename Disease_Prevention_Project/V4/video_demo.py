@@ -180,7 +180,7 @@ if __name__ == '__main__':
                         time_dict[user_name] = now
                         user_name_dict[id] = user_name
                         user_names.append(user_name)
-
+        # TODO: Match locations with results
         result_frame = draw_results(
             frame, locations, results, user_names, tolerance)
         cv2.imshow('Video', result_frame)
