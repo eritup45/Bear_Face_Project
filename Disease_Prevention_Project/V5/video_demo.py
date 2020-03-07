@@ -26,7 +26,7 @@ def find_closest(list_of_face_encodings, unknown_face_encoding):
 
 # Get the indices of faces in a list of frames which
 #  corresponding to each face in the last frame.
-def same_face_indices(prev_encodings, prev_locations):
+def same_face_indices(prev_encodings, prev_locations, tolerance):
     selected_bools = []
     for col, x in enumerate(prev_encodings):
         selected_bools.append([])
@@ -62,7 +62,7 @@ def same_face_indices(prev_encodings, prev_locations):
     return same_indices
 
 
-def draw_results(frame, locations, results, user_names, tolerance, scale=2):
+def draw_results(frame, locations, results, user_names, tolerance, font, scale=2):
     rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     for (top, right, bottom, left), (_, min_distance), user_name \
             in zip(locations, results, user_names):
@@ -78,7 +78,6 @@ def draw_results(frame, locations, results, user_names, tolerance, scale=2):
 
         draw.rectangle([(left, bottom - 70), (right, bottom)],
                        fill=rectColor, outline=None)
-        font = _font
         textColor = (255, 255, 255)
         draw.text((left + 6, bottom - 72),
                   str(f'{user_name}, Diff: {min_distance: > .4f}'),
@@ -91,16 +90,18 @@ def draw_results(frame, locations, results, user_names, tolerance, scale=2):
     return result_frame
 
 
-if __name__ == '__main__':
+def main():
     database_name = './teacher.db'
     tolerance = 0.35
     frame_buffer_size = 10  # number of buffered frames to generate result
     # [[en_face, ID, Name], ...]
+    print(str(Path('__file__')))
     user_profile_list = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
     guest_encodings = []
-    _font = ImageFont.truetype(
-        str(Path(__file__).parent.joinpath('NotoSansCJK-Regular222.ttc')), 20)
+    font = ImageFont.truetype(
+        str(Path('__file__').parent.joinpath('NotoSansCJK-Regular222.ttc')),
+        20)
     prev_locations = []  # Previous face locations in buffered frames
     prev_encodings = []  # Previous face encodings in buffered frames
     # Indices of previous matched encodings in buffered frames
@@ -150,7 +151,7 @@ if __name__ == '__main__':
                         == frame_buffer_size - 1):
                     # Get the indices of encodings that have the most matching
                     indices_list = same_face_indices(
-                        prev_encodings, prev_locations)
+                        prev_encodings, prev_locations, tolerance)
                     results = []
                     for encoding, location, indices in zip(
                             encodings, locations, indices_list):
@@ -197,8 +198,12 @@ if __name__ == '__main__':
                         user_names.append(user_name)
         # TODO: Match locations with results
         result_frame = draw_results(
-            frame, locations, results, user_names, tolerance)
+            frame, locations, results, user_names, tolerance, font)
         cv2.imshow('Video', result_frame)
         # Press q to quit
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+
+if __name__ == '__main__':
+    main()
