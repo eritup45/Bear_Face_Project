@@ -95,12 +95,12 @@ def main():
     tolerance = 0.35
     frame_buffer_size = 10  # number of buffered frames to generate result
     # [[en_face, ID, Name], ...]
-    print(str(Path('__file__')))
+    print(str(Path(__file__).resolve()))
     user_profile_list = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
     guest_encodings = []
     font = ImageFont.truetype(
-        str(Path('__file__').parent.joinpath('NotoSansCJK-Regular222.ttc')),
+        str(Path(__file__).parent.joinpath('NotoSansCJK-Regular222.ttc')),
         20)
     prev_locations = []  # Previous face locations in buffered frames
     prev_encodings = []  # Previous face encodings in buffered frames
