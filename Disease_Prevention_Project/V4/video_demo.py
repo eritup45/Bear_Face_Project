@@ -81,7 +81,7 @@ def draw_results(frame, locations, results, user_names, tolerance, scale=2):
 if __name__ == '__main__':
     database_name = './teacher.db'
     tolerance = 0.35
-    frame_buffer_size = 20  # number of buffered frames to generate result
+    frame_buffer_size = 10  # number of buffered frames to generate result
     # [[en_face, ID, Name], ...]
     user_profile_list = get_encodings(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
@@ -99,8 +99,9 @@ if __name__ == '__main__':
     guest_count = 0
     user_names = []  # name of detected people in the current frame
     user_name_dict = {}  # {id: name}
+    record_frame_count = 0
 
-    video_capture = cv2.VideoCapture(0)
+    video_capture = cv2.VideoCapture(1)
     for frame_count in itertools.count():
         _, frame = video_capture.read()
 
@@ -117,7 +118,6 @@ if __name__ == '__main__':
                 encodings = face_recognition.face_encodings(
                     rgb_small_frame, locations)
                 matched_ids = []
-                distances = []
                 for encoding in encodings:
                     id, distance = find_closest(known_face_encodings, encoding)
                     if distance > tolerance and len(guest_encodings) > 0:
@@ -127,58 +127,59 @@ if __name__ == '__main__':
                         if distance2 < distance:
                             id, distance = id2, distance2
                     matched_ids.append(id)
-                    distances.append(distance)
                 start = 0 if len(prev_locations) < frame_buffer_size else 1
                 prev_locations[0:] = prev_locations[start:] + [locations]
                 prev_encodings[0:] = prev_encodings[start:] + [encodings]
                 prev_matched_ids[0:] = prev_matched_ids[start:] + [matched_ids]
+                record_frame_count += 1
+                # Generate results every frame_buffer_size frames
+                if (record_frame_count % frame_buffer_size
+                        == frame_buffer_size - 1):
+                    # Get the indices of encodings that have the most matching
+                    indices_list = same_face_indices(
+                        prev_encodings, prev_locations)
+                    results = []
+                    for encoding, location, indices in zip(
+                            encodings, locations, indices_list):
+                        ids = [prev_matched_ids[row][col]
+                               for row, col in indices]
+                        id = Counter(ids).most_common(1)[0][0]
+                        distance = face_recognition.face_distance(
+                            (known_face_encodings + guest_encodings)[id: id+1],
+                            encoding)[0]
+                        results.append(
+                            (id, distance)
+                        )
+                    user_names = []
+                    now = datetime.now()
+                    for i, (id, min_distance) in enumerate(results):
+                        # Is new guest
+                        if min_distance > tolerance:
+                            user_name = f'訪客{guest_count + 1}'
+                            id = len(known_face_encodings) + \
+                                len(guest_encodings)
+                            guest_encodings.append(encodings[i])
+                            guest_count += 1
+                        # Is in database
+                        elif id < len(known_face_encodings):
+                            user_name = user_profile_list[id][2]
+                        # Is old guest
+                        else:
+                            user_name = user_name_dict[id]
 
-        # Generate results every frame_buffer_size frames
-        if frame_count % frame_buffer_size == frame_buffer_size - 1:
-            # Get the indices of encodings that have the most matching
-            indices_list = same_face_indices(prev_encodings, prev_locations)
-            results = []
-            for encoding, location, indices in zip(
-                    encodings, locations, indices_list):
-                ids = [prev_matched_ids[row][col] for row, col in indices]
-                id = Counter(ids).most_common(1)[0][0]
-                distance = face_recognition.face_distance(
-                    (known_face_encodings + guest_encodings)[id: id+1],
-                    encoding)[0]
-                results.append(
-                    (id, distance)
-                )
-            user_names = []
-            for i, (id, min_distance) in enumerate(results):
-                # Is new guest
-                if min_distance > tolerance:
-                    user_name = f'訪客{guest_count + 1}'
-                    id = len(known_face_encodings) + len(guest_encodings)
-                    guest_count += 1
-                    guest_encodings.append(encodings[i])
-                    if len(guest_encodings) > 1 and False not in (
-                        guest_encodings[-1] == guest_encodings[-2]
-                    ):
-                        print(456)
-                # Is in database
-                elif id < len(known_face_encodings):
-                    user_name = user_profile_list[id][2]
-                # Is old guest
-                else:
-                    user_name = user_name_dict[id]
+                        # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
 
-                # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
-                now = datetime.now()
-                if (now - time_dict.setdefault(
-                    user_name, dt.datetime.min))\
-                        .total_seconds() > 10.0:
-                    Insert_Measure_Info(database_name, [user_name, now])
-                    print('寫入')
+                        if (now - time_dict.setdefault(
+                            user_name, dt.datetime.min))\
+                                .total_seconds() > 10.0:
+                            Insert_Measure_Info(
+                                database_name, [user_name, now])
+                            print('寫入')
 
-                print(user_name)
-                time_dict[user_name] = now
-                user_name_dict[id] = user_name
-                user_names.append(user_name)
+                        print(user_name)
+                        time_dict[user_name] = now
+                        user_name_dict[id] = user_name
+                        user_names.append(user_name)
 
         result_frame = draw_results(
             frame, locations, results, user_names, tolerance)
