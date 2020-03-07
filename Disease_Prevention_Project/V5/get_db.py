@@ -1,12 +1,13 @@
 import sqlite3
 from encode import convert_list
 from pathlib import Path
+from get_file_path import get_file_path
 
 
 def get_user_profiles(database):
     user_profile_list = []
-    print(str(Path(__file__).parent.joinpath(database)))
-    conn = sqlite3.connect(str(Path(__file__).parent.joinpath(database)))
+    print(str(Path(get_file_path()).parent.joinpath(database)))
+    conn = sqlite3.connect(str(Path(get_file_path()).parent.joinpath(database)))
     c = conn.cursor()
     # 印出 User_Profile 中的資料，並以Number欄位排序
     for en_face, ID, Name in c.execute(
