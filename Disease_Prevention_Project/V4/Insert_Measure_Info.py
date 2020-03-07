@@ -11,8 +11,6 @@ def Insert_Measure_Info(database, info):
     c = conn.cursor()
     c.execute("INSERT INTO Measure_Info (ID, Date) \
                     VALUES ('{}', '{}')".format(ID, Date))
-    # for row in c.execute('SELECT * FROM Measure_Info'):
-    # print(row)
     conn.commit()
     conn.close()
 
