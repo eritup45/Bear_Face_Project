@@ -1,6 +1,6 @@
 import cv2
 from datetime import datetime
-from get_encodings import get_encodings
+from get_db import get_user_profiles
 import face_recognition
 import datetime as dt
 from collections import Counter
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     tolerance = 0.35
     frame_buffer_size = 10  # number of buffered frames to generate result
     # [[en_face, ID, Name], ...]
-    user_profile_list = get_encodings(database_name)
+    user_profile_list = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
     guest_encodings = []
     _font = ImageFont.truetype(

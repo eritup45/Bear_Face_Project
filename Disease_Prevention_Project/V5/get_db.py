@@ -3,7 +3,7 @@ from encode import convert_list
 from pathlib import Path
 
 
-def get_encodings(database):
+def get_user_profiles(database):
     user_profile_list = []
     conn = sqlite3.connect(str(Path(__file__).parent.joinpath(database)))
     c = conn.cursor()
