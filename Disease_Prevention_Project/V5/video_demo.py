@@ -91,7 +91,7 @@ def draw_results(frame, locations, results, user_names, tolerance, font, scale=2
 
 
 def main():
-    database_name = './teacher.db'
+    database_name = './Release/teacher.db'
     tolerance = 0.35
     frame_buffer_size = 10  # number of buffered frames to generate result
     # [[en_face, ID, Name], ...]
