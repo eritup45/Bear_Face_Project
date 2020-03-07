@@ -1,6 +1,6 @@
 import cv2
 from datetime import datetime
-from my_compare import get_encodings, find_closest
+from get_encodings import get_encodings
 import face_recognition
 import datetime as dt
 from collections import Counter
@@ -9,6 +9,17 @@ from Insert_Measure_Info import Insert_Measure_Info
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from pathlib import Path
+
+
+# Return:
+# min_distance: smallest distance
+# id: the id of the min_distance
+def find_closest(list_of_face_encodings, unknown_face_encoding):
+    distances = face_recognition.face_distance(
+        list_of_face_encodings, unknown_face_encoding)
+    min_distance = min(distances)
+    id = distances.argmin()
+    return id, min_distance
 
 
 # Get the indices of faces in a list of frames which
