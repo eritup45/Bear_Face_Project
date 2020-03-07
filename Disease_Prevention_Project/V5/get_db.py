@@ -5,6 +5,7 @@ from pathlib import Path
 
 def get_user_profiles(database):
     user_profile_list = []
+    print(str(Path(__file__).parent.joinpath(database)))
     conn = sqlite3.connect(str(Path(__file__).parent.joinpath(database)))
     c = conn.cursor()
     # 印出 User_Profile 中的資料，並以Number欄位排序
