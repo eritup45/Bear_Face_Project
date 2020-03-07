@@ -21,6 +21,8 @@ def fetch_newest_temperature_db(database):
 
 # Ordered by Idx, Update Date, Temp, Status in Table Measure_Info
 # data: [Date, Temp, Status]
+
+
 def Update_Measure_Info(database, data):
     conn = sqlite3.connect(os.path.join(dirname, database))
     Temp_Index = int(data[0])

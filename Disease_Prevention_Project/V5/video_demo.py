@@ -9,11 +9,13 @@ from Insert_Measure_Info import Insert_Measure_Info
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from pathlib import Path
-
+from Combine_database import fetch_newest_temperature_db, Update_Measure_Info
 
 # Return:
 # min_distance: smallest distance
 # id: the id of the min_distance
+
+
 def find_closest(list_of_face_encodings, unknown_face_encoding):
     distances = face_recognition.face_distance(
         list_of_face_encodings, unknown_face_encoding)
@@ -185,6 +187,8 @@ if __name__ == '__main__':
                                 .total_seconds() > 10.0:
                             Insert_Measure_Info(
                                 database_name, [user_name, now])
+                            data = fetch_newest_temperature_db(database_name)
+                            Update_Measure_Info(database_name, data)
                             print('寫入')
 
                         print(user_name)
