@@ -5,16 +5,9 @@ from pathlib import Path
 from encode import read_image_name, adapt_list
 
 
-def write_one_face_in_db(database, img_name, user_p):
+def Update_one_face_in_db(database, img_name, user_p):
     conn = sqlite3.connect(database)
     c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS User_Profile (\
-        Unit_id TEXT,\
-            Unit_name TEXT,\
-                ID TEXT PRIMARY KEY,\
-                    Name TEXT,\
-                        Title_name TEXT,\
-                            Encoded_face BLOB)")
 
     image = face_recognition.load_image_file(img_name)
     # 查詢面部編碼
@@ -40,4 +33,4 @@ if __name__ == '__main__':
     my = 'D:\大三\專題\防疫專案\data\教職員\picture\K121392978.jpg'
     my_dir = Path(my)
     user_profile = ['4204', '機械工程學系', 'K121392978', '王祥辰', '教授']
-    write_one_face_in_db(database, my_dir, user_profile)
+    Update_one_face_in_db(database, my_dir, user_profile)
