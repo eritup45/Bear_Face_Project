@@ -82,7 +82,7 @@ def draw_results(frame, locations, results, user_names,
         draw.rectangle([(left, top), (right, bottom)],
                        fill=None, outline=rectColor, width=5)
 
-        draw.rectangle([(left, bottom), (right, bottom + 70)],
+        draw.rectangle([(left, bottom), (right, bottom + 50)],
                        fill=rectColor, outline=None)
         textColor = (0, 0, 0)
         draw.text((left + 6, bottom),
@@ -151,7 +151,6 @@ def main():
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_frame = small_frame[:, :, ::-1]
-            # TODO: Match locations with results
             result_frame = draw_results(
                 frame, locations, results, user_names,
                 tolerance, font, 1 / frame_scale, detect_rect_)
@@ -182,8 +181,7 @@ def main():
                 results = []
                 for encoding, location, indices in zip(
                         encodings, locations, indices_list):
-                    ids = [prev_matched_ids[row][col]
-                           for row, col in indices]
+                    ids = [prev_matched_ids[row][col] for row, col in indices]
                     id = Counter(ids).most_common(1)[0][0]
                     distance = face_recognition.face_distance(
                         (known_face_encodings)[id: id+1], encoding)[0]
@@ -195,8 +193,7 @@ def main():
                 # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
                 now = datetime.now()
                 time_span = 5.0 if user_name == '訪客' else 10.0
-                if (now - time_dict.setdefault(
-                    user_name, dt.datetime.min))\
+                if (now - time_dict.setdefault(user_name, dt.datetime.min))\
                         .total_seconds() > time_span:
                     Insert_Measure_Info(database_name, [user_name, now])
                     data = fetch_newest_temperature_db(database_name)
