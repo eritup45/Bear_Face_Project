@@ -14,6 +14,7 @@ def Update_one_face_in_db(database, img_name, user_p):
     list_of_face_encodings = face_recognition.face_encodings(image)
     if adapt_list(list_of_face_encodings) is None:
         print(f"Can\'t find face: {img_name}")
+        return False
     else:
         # Because ID is PRIMARY KEY, just pick one photo.
         for i, data in enumerate(adapt_list(list_of_face_encodings)):
@@ -26,6 +27,7 @@ def Update_one_face_in_db(database, img_name, user_p):
                       
     conn.commit()
     conn.close()
+    return True
 
 
 if __name__ == '__main__':
