@@ -61,8 +61,8 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
     return same_indices
 
 
-def draw_results(frame, locations, results, user_names,
-                 tolerance, font, scale, detect_rect_):
+def draw_results(frame, locations, results, tolerance,
+                 font, scale, detect_rect_):
     rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     detect_top, detect_right, detect_bottom, detect_left = [
         x * 2 for x in detect_rect_]
@@ -70,8 +70,8 @@ def draw_results(frame, locations, results, user_names,
     draw = ImageDraw.Draw(rgb_frame)
     draw.rectangle([(detect_left, detect_top), (detect_right, detect_bottom)],
                    fill=None, outline=rectColor, width=5)
-    for (top, right, bottom, left), (_, distance), user_name \
-            in zip(locations, results, user_names):
+    for (top, right, bottom, left), (name, distance)\
+            in zip(locations, results):
         top *= scale
         right *= scale
         bottom *= scale
@@ -86,7 +86,7 @@ def draw_results(frame, locations, results, user_names,
                        fill=rectColor, outline=None)
         textColor = (0, 0, 0)
         draw.text((left + 6, bottom),
-                  str(f'{user_name}, Diff: {distance: > .4f}'),
+                  str(f'{name}, Diff: {distance: > .4f}'),
                   font=font, fill=textColor)
     result_frame = cv2.cvtColor(np.asarray(rgb_frame), cv2.COLOR_RGB2BGR)
     return result_frame
@@ -109,6 +109,12 @@ def in_detect_range(face_rect, detect_rect_):
             and left > detect_left)
 
 
+def is_new_person(time_dict, name, now):
+    span = 5.0 if name == '訪客' else 10.0
+    return (now - time_dict.setdefault(name, dt.datetime.min))\
+        .total_seconds() > span
+
+
 def main():
     if len(sys.argv) >= 3:
         video_num = int(sys.argv[2])
@@ -118,8 +124,8 @@ def main():
     tolerance = 0.385
     frame_buffer_size = 6  # number of buffered frames to generate result
     # [[en_face, ID, Name], ...]
-    user_profile_list = get_user_profiles(database_name)
-    known_face_encodings = [x[0] for x in user_profile_list]
+    user_profiles = get_user_profiles(database_name)
+    known_face_encodings = [x[0] for x in user_profiles]
 
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
@@ -132,7 +138,6 @@ def main():
     results = []  # [[closest_id, distance], ...]
     locations = []
 
-    user_names = []  # name of detected people in the current frame
     record_frame_count = 0
 
     video_capture = cv2.VideoCapture(video_num)
@@ -152,8 +157,8 @@ def main():
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_frame = small_frame[:, :, ::-1]
             result_frame = draw_results(
-                frame, locations, results, user_names,
-                tolerance, font, 1 / frame_scale, detect_rect_)
+                frame, locations, results, tolerance,
+                font, 1 / frame_scale, detect_rect_)
             cv2.imshow('Video', result_frame)
             new_locations = [x for x
                              in face_recognition.face_locations(rgb_frame)
@@ -185,23 +190,22 @@ def main():
                     id = Counter(ids).most_common(1)[0][0]
                     distance = face_recognition.face_distance(
                         (known_face_encodings)[id: id+1], encoding)[0]
-                    results.append((id, distance))
-            user_names = ['訪客' if distance > tolerance
-                          else user_profile_list[id][2]
-                          for id, distance in results]
-            for user_name in user_names:
-                # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
-                now = datetime.now()
-                time_span = 5.0 if user_name == '訪客' else 10.0
-                if (now - time_dict.setdefault(user_name, dt.datetime.min))\
-                        .total_seconds() > time_span:
-                    Insert_Measure_Info(database_name, [user_name, now])
+                    name = ('訪客' if distance > tolerance
+                            else user_profiles[id][2])
+                    results.append((name, distance))
+            now = datetime.now()
+            for name, _ in results:
+                # 若根據偵測時間判斷為新的人，將資料寫進資料庫
+                if is_new_person(time_dict, name, now):
+                    Insert_Measure_Info(database_name, [name, now])
                     data = fetch_newest_temperature_db(database_name)
                     Update_Measure_Info(database_name, data)
-                    print(f'寫入:{user_name}')
+                    print(f'寫入:{name}')
                 else:
-                    print(f'不寫入:{user_name}')
-                time_dict[user_name] = now
+                    print(f'不寫入:{name}')
+
+            for name, _ in results:
+                time_dict[name] = now
 
 
 if __name__ == '__main__':
