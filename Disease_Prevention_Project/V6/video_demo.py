@@ -63,7 +63,8 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
     return same_indices
 
 
-def draw_results(frame, locations, results, user_names, tolerance, font, scale=2):
+def draw_results(frame, locations, results, user_names,
+                 tolerance, font, scale=2):
     rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     for (top, right, bottom, left), (_, min_distance), user_name \
             in zip(locations, results, user_names):
@@ -99,7 +100,7 @@ def main():
     user_profile_list = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
     guest_encodings = []
-    
+
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
     prev_locations = []  # Previous face locations in buffered frames

@@ -64,9 +64,11 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
     return same_indices
 
 
-def draw_results(frame, locations, results, user_names, tolerance, font, scale, detect_rect_):
+def draw_results(frame, locations, results, user_names,
+                 tolerance, font, scale, detect_rect_):
     rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    detect_top, detect_right, detect_bottom, detect_left = [x * 2 for x in detect_rect_]
+    detect_top, detect_right, detect_bottom, detect_left = [
+        x * 2 for x in detect_rect_]
     rectColor = (0, 0, 255)
     draw = ImageDraw.Draw(rgb_frame)
     draw.rectangle([(detect_left, detect_top), (detect_right, detect_bottom)],
@@ -121,7 +123,7 @@ def main():
     # [[en_face, ID, Name], ...]
     user_profile_list = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profile_list]
-    
+
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
     prev_locations = []  # Previous face locations in buffered frames
@@ -133,15 +135,15 @@ def main():
     results = []  # [[closest_id, distance], ...]
 
     user_names = []  # name of detected people in the current frame
-    user_name_dict = {}  # {id: name}
     record_frame_count = 0
 
-    frame_scale = 0.5
-
     video_capture = cv2.VideoCapture(video_num)
+    frame_scale = 0.5
     video_height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT) * frame_scale
     video_width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH) * frame_scale
-    detect_rect_ = detect_rect((video_height, video_width), 6)
+
+    detect_edge_ratio = 6.5
+    detect_rect_ = detect_rect((video_height, video_width), detect_edge_ratio)
     for frame_count in itertools.count():
         _, frame = video_capture.read()
 
@@ -149,17 +151,17 @@ def main():
         if frame_count % 2 == 0:
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
-            rgb_small_frame = small_frame[:, :, ::-1]
-            new_locations = [x for x in face_recognition.face_locations(rgb_small_frame)
-                                if in_detect_range(x, detect_rect_)]
-
+            rgb_frame = small_frame[:, :, ::-1]
+            new_locations = [x for x in
+                             face_recognition.face_locations(rgb_frame)
+                             if in_detect_range(x, detect_rect_)]
             if len(new_locations) > 0 or (
                 dt.datetime.now() - last_detected_time
             ).total_seconds() > 2.0:
                 locations = new_locations
                 last_detected_time = dt.datetime.now()
                 encodings = face_recognition.face_encodings(
-                    rgb_small_frame, locations)
+                    rgb_frame, locations)
                 matched_ids = []
                 for encoding in encodings:
                     id, distance = find_closest(known_face_encodings, encoding)
@@ -169,7 +171,7 @@ def main():
                 prev_encodings[0:] = prev_encodings[start:] + [encodings]
                 prev_matched_ids[0:] = prev_matched_ids[start:] + [matched_ids]
                 record_frame_count += 1
-                # Generate results every frame_buffer_size frames
+                # Generate results every 2 frames
                 if (record_frame_count % 2 == 0):
                     # Get the indices of encodings that have the most matching
                     indices_list = same_face_indices(
@@ -179,7 +181,7 @@ def main():
                         for encoding, location, indices in zip(
                                 encodings, locations, indices_list):
                             ids = [prev_matched_ids[row][col]
-                                for row, col in indices]
+                                   for row, col in indices]
                             id = Counter(ids).most_common(1)[0][0]
                             distance = face_recognition.face_distance(
                                 (known_face_encodings)[id: id+1],
@@ -190,19 +192,15 @@ def main():
                     user_names = []
                     now = datetime.now()
                     for i, (id, min_distance) in enumerate(results):
-                        # Is new guest
+                        # Is guest
                         if min_distance > tolerance:
-                            user_name = f'訪客'
-                            id = len(known_face_encodings)
+                            user_name = '訪客'
                         # Is in database
-                        elif id < len(known_face_encodings):
-                            user_name = user_profile_list[id][2]
-                        # Is old guest
                         else:
-                            user_name = user_name_dict[id]
+                            user_name = user_profile_list[id][2]
 
                         # 若現在距離人臉最後偵測時間大於十秒，將資料寫進資料庫
-                        time_span = 3.0 if id == '訪客' else 10.0
+                        time_span = 3.0 if user_name == '訪客' else 10.0
                         if (now - time_dict.setdefault(
                             user_name, dt.datetime.min))\
                                 .total_seconds() > time_span:
@@ -210,15 +208,15 @@ def main():
                                 database_name, [user_name, now])
                             data = fetch_newest_temperature_db(database_name)
                             Update_Measure_Info(database_name, data)
-                            print('寫入')
-
-                        print(user_name)
+                            print(f'寫入:{user_name}')
+                        else:
+                            print(f'不寫入:{user_name}')
                         time_dict[user_name] = now
-                        user_name_dict[id] = user_name
                         user_names.append(user_name)
         # TODO: Match locations with results
         result_frame = draw_results(
-            frame, locations, results, user_names, tolerance, font, 1 / frame_scale, detect_rect_)
+            frame, locations, results, user_names,
+            tolerance, font, 1 / frame_scale, detect_rect_)
         cv2.imshow('Video', result_frame)
         # Press q to quit
         if cv2.waitKey(1) & 0xFF == ord('q'):
