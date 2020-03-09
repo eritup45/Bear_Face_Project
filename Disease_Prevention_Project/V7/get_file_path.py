@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import sys
 # import argparse
 # from parser import parser_args
@@ -8,9 +8,12 @@ import sys
 #     parser.add_argument('--camera', type=int, default=0)
 #     return parser.parse_args()
 
+
 def get_file_path():
-    
-    return sys.argv[1]
+    if len(sys.argv) >= 2:
+        return sys.argv[1]
+    else:
+        return str(Path(__file__).parent)
     # try:
     #     this_file = __file__
     # except NameError:
@@ -21,12 +24,10 @@ def get_file_path():
     # else:
     #     return os.path.dirname(this_file)
 
-# import sys, os
-
 # def get_file_path():
 #     if getattr(sys, 'frozen', False):
 #         # If the application is run as a bundle, the pyInstaller bootloader
-#         # extends the sys module by a flag frozen=True and sets the app 
+#         # extends the sys module by a flag frozen=True and sets the app
 #         # path into variable _MEIPASS'.
 #         return sys._MEIPASS
 #     else:

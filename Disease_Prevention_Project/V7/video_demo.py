@@ -96,7 +96,7 @@ def draw_results(frame, locations, results, user_names, tolerance, font, scale, 
 def detect_rect(frame_size, ratio):
     frame_height, frame_width = frame_size
     return (frame_height / ratio,
-           frame_width * (ratio - 1) / ratio,
+            frame_width * (ratio - 1) / ratio,
             frame_height * (ratio - 1) / ratio,
             frame_width / ratio)
 
@@ -111,7 +111,10 @@ def in_detect_range(face_rect, detect_rect_):
 
 
 def main():
-    video_num = int(sys.argv[2])
+    if len(sys.argv) >= 3:
+        video_num = int(sys.argv[2])
+    else:
+        video_num = 0
     database_name = './Release/teacher.db'
     tolerance = 0.385
     frame_buffer_size = 6  # number of buffered frames to generate result
