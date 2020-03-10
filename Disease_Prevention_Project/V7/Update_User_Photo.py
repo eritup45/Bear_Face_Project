@@ -32,9 +32,6 @@ def take_photo(ID, pic_dir):
         # show a frame
         cv2.imshow("capture", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            status = cv2.imwrite(
-                str(Path('D:\大三').joinpath(str(ID) + ".jpg")), frame)
-            print('status: ', status)
             cv2.imwrite(str(Path(pic_dir).joinpath(str(ID) + ".jpg")), frame)
             break
     cap.release()
@@ -75,7 +72,7 @@ def Update_User_Photo(database):
             Unit_id, Unit_name, ID, Name, Title_name\
                   FROM User_Profile Where Name = '{}'".format(Name)):
             # [[Unit_id, Unit_name, ID, Name, Title_name], ... ]
-            data_list.append(data[0], data[1], data[2], data[3], data[4])
+            data_list.append(data[0] + data[1] + data[2] + data[3] + data[4])
         # ID not found
         if len(data_list) == 0:
             if(Insert_one_face_in_db(database, photo_path, user_profile)):
