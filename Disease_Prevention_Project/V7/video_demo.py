@@ -1,19 +1,20 @@
 import cv2
 from datetime import datetime
-from get_db import get_user_profiles
 import face_recognition
 import datetime as dt
 from collections import Counter
 import itertools
-from Insert_Measure_Info import Insert_Measure_Info
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from pathlib import Path
 import sys
-from Combine_database import fetch_newest_temperature_db
-from get_file_path import get_file_path
 import cProfile
 
+from get_db import get_user_profiles
+from Combine_database import fetch_newest_temperature_db
+from get_file_path import get_file_path
+from Insert_Measure_Info import Insert_Measure_Info
+from Update_User_Photo import Update_User_Photo
 
 # Return:
 # id: the id of the minimum distance
@@ -154,6 +155,9 @@ def main():
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 return
             _, frame = video_capture.read()
+            # press s to update database and save pictures
+            if cv2.waitKey(1) & 0xFF == ord('s'):
+                Update_User_Photo(database_name, frame)
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_frame = small_frame[:, :, ::-1]
