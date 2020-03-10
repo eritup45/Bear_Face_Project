@@ -42,6 +42,10 @@ def Update_User_Photo(database, frame):
 
     ID = str(new_User[1])
     Name = str(new_User[0])
+
+    if len(ID) != 5:
+        easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
+        return
     
     photo_path = save_photo(ID, pic_dir, frame)
     data_list = []
