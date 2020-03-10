@@ -121,11 +121,16 @@ def is_new_person(time_dict, name, now):
         .total_seconds() > span
 
 
-def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
-    while True:
-        (frame, locations, order) = encode_request_queue.get()
-        encodings = face_recognition.face_encodings(frame, locations)
-        encode_result_queue.put((encodings, order))
+def encode(frame, locations):
+    encodings = face_recognition.face_encodings(frame, locations)
+    return encodings
+
+
+# def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
+#     while True:
+#         (frame, locations, order) = encode_request_queue.get()
+#         encodings = face_recognition.face_encodings(frame, locations)
+#         encode_result_queue.put((encodings, order))
 
 
 def main():
@@ -144,6 +149,7 @@ def main():
     prev_encodings = []  # Previous face encodings in buffered frames
     # Indices of previous matched encodings in buffered frames
     prev_matched_ids = []
+    prev_frames = []
     time_dict = {}  # {id: leaving_time}
     last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
@@ -151,8 +157,10 @@ def main():
     record_frame_count = 0
 
     available_cpus = psutil.Process().cpu_affinity()
-    encode_request_queue = mp.Queue(maxsize=len(available_cpus))
+    cpu_count = len(available_cpus)
+    encode_request_queue = mp.Queue(maxsize=cpu_count)
     encode_result_queue = mp.Queue()
+    pool = mp.Pool(processes=cpu_count)
 
     video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
@@ -188,25 +196,32 @@ def main():
             if len(locations) > 0 or (dt.datetime.now() - last_record_time
                                       ).total_seconds() > 2.0:
                 break
-        locations = new_locations
+        record_frame_count += 1
         last_record_time = dt.datetime.now()
-        encodings = face_recognition.face_encodings(rgb_frame, locations)
-        matched_ids = [find_closest(known_face_encodings, x)
-                       for x in encodings]
+        locations = new_locations
+        start = 0 if len(prev_frames) < 4 else 1
+        prev_frames[0:] = prev_frames[start:] + [rgb_frame]
         start = 0 if len(prev_locations) < frame_buffer_size else 1
         prev_locations[0:] = prev_locations[start:] + [locations]
-        prev_encodings[0:] = prev_encodings[start:] + [encodings]
-        prev_matched_ids[0:] = prev_matched_ids[start:] + [matched_ids]
-        record_frame_count += 1
-        # Generate results every 2 frames
-        if record_frame_count % 2 == 0:
+        # Generate results every cpu_count frames
+        if record_frame_count % cpu_count == 0:
+            encodings = pool.starmap(
+                encode,
+                [(prev_frames[i], prev_locations[i])
+                 for i in range(-cpu_count, 0)]
+            )
+            matched_ids = [[find_closest(known_face_encodings, x)
+                            for x in y] for y in encodings]
+            start = 0 if len(prev_encodings) < frame_buffer_size else cpu_count
+            prev_encodings[0:] = prev_encodings[start:] + encodings
+            prev_matched_ids[0:] = prev_matched_ids[start:] + matched_ids
             # Get the indices of encodings that have the most matching
             indices_list = same_face_indices(
                 prev_encodings, prev_locations, tolerance)
             if False not in [len(x) >= 4 for x in indices_list]:
                 results = []
                 for encoding, location, indices in zip(
-                        encodings, locations, indices_list):
+                        encodings[-1], locations, indices_list):
                     ids = [prev_matched_ids[row][col] for row, col in indices]
                     id = Counter(ids).most_common(1)[0][0]
                     distance = face_recognition.face_distance(
@@ -229,6 +244,8 @@ def main():
 
             for name, _, _ in results:
                 time_dict[name] = now
+    pool.join()
+    print('Main ended')
 
 
 if __name__ == '__main__':
