@@ -1,10 +1,3 @@
-
-# cv2.imwrite(str(Path('./pictures/27.jpg')), frame)
-
-# cv2.imwrite(str(Path(
-# 'D:\\大三\\專題\\防疫專案\\Others\\Bear_Face_Project\\Disease_Prevention_Project\\V7/pictures/27.jpg')), frame)
-
-
 import easygui
 import cv2
 from pathlib import Path
@@ -43,9 +36,9 @@ def Update_User_Photo(database, frame):
             ,title='新增/更新臉部資料').split()
         if len(new_User) != 2:
             easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
+            return
     except:
         easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
-        return
 
     ID = str(new_User[1])
     Name = str(new_User[0])
@@ -60,10 +53,11 @@ def Update_User_Photo(database, frame):
     # ID not found
     user_profile = [None, None, ID, Name, None]
     if len(data_list) == 0:
-        if(Insert_one_face_in_db(database, photo_path, user_profile)):
-            easygui.msgbox('未找到符合身分。加入資料庫')
-        else:
-            easygui.msgbox('臉部偵測錯誤，請重新檢測!')
+        easygui.msgbox('未找到符合身分。')
+        # if(Insert_one_face_in_db(database, photo_path, user_profile)):
+        #     easygui.msgbox('未找到符合身分。加入資料庫')
+        # else:
+        #     easygui.msgbox('臉部偵測錯誤，請重新檢測!')
     # Got the same name, find ID's last 5 words 
     elif len(data_list) > 1:
         # Find the same ID by last 5 words, and get the correct user_profile
@@ -79,8 +73,6 @@ def Update_User_Photo(database, frame):
     # Normal case
     else:
         user_profile = data_list[0]
-        print(len(user_profile))
-        print(user_profile)
         if(Update_one_face_in_db(database, photo_path, user_profile)):
             easygui.msgbox('更新成功!')
         else:
