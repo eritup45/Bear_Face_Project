@@ -12,7 +12,9 @@ from pathlib import Path
 import sys
 from Combine_database import fetch_newest_temperature_db, Update_Measure_Info
 from get_file_path import get_file_path
-import cProfile
+import multiprocessing as mp
+import psutil
+# import yappi
 
 
 # Return:
@@ -116,6 +118,13 @@ def is_new_person(time_dict, name, now):
         .total_seconds() > span
 
 
+def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
+    while True:
+        (frame, locations, order) = encode_request_queue.get()
+        encodings = face_recognition.face_encodings(frame, locations)
+        encode_result_queue.put((encodings, order))
+
+
 def main():
     if len(sys.argv) >= 3:
         video_num = int(sys.argv[2])
@@ -128,26 +137,29 @@ def main():
     user_profiles = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profiles]
 
-    font = ImageFont.truetype(
-        str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
     prev_locations = []  # Previous face locations in buffered frames
     prev_encodings = []  # Previous face encodings in buffered frames
     # Indices of previous matched encodings in buffered frames
     prev_matched_ids = []
     time_dict = {}  # {id: leaving_time}
-    last_detected_time = dt.datetime.min
+    last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
     locations = []
-
     record_frame_count = 0
+
+    available_cpus = psutil.Process().cpu_affinity()
+    encode_request_queue = mp.Queue(maxsize=len(available_cpus))
+    encode_result_queue = mp.Queue()
 
     video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
     video_height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT) * frame_scale
     video_width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH) * frame_scale
-
     detect_edge_ratio = 6.5
     detect_rect_ = detect_rect((video_height, video_width), detect_edge_ratio)
+    font = ImageFont.truetype(
+        str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
+
     for frame_count in itertools.count():
         while True:
             # Press q to quit
@@ -164,12 +176,11 @@ def main():
             new_locations = [x for x
                              in face_recognition.face_locations(rgb_frame)
                              if in_detect_range(x, detect_rect_)]
-            if len(locations) > 0 or (
-                    dt.datetime.now() - last_detected_time
-            ).total_seconds() > 2.0:
+            if len(locations) > 0 or (dt.datetime.now() - last_record_time
+                                      ).total_seconds() > 2.0:
                 break
         locations = new_locations
-        last_detected_time = dt.datetime.now()
+        last_record_time = dt.datetime.now()
         encodings = face_recognition.face_encodings(rgb_frame, locations)
         matched_ids = [find_closest(known_face_encodings, x)
                        for x in encodings]
@@ -211,5 +222,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # cProfile.run('main()')
     main()
