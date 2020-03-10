@@ -42,7 +42,7 @@ def take_photo(ID, pic_dir):
     return str(Path(pic_dir).joinpath(str(ID) + ".jpg"))
 
 
-def main(database):
+def Update_User_Photo(database):
     print(str(Path(sys.argv[1])))
     root_dir = Path(sys.argv[1])
     database = str(root_dir.joinpath(database))
@@ -107,4 +107,4 @@ def main(database):
 
 
 if __name__ == '__main__':
-    main('teacher.db')
+    Update_User_Photo('./Release/teacher.db')
