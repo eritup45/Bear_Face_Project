@@ -44,11 +44,9 @@ def Update_User_Photo(database, frame):
         if len(new_User) != 2:
             print('Insert Error, please enter \"姓名 身分證後五碼\" again.')
             easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
-            continue
     except:
         print('Insert Error, please enter \"姓名 身分證後五碼\" again.')
         easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
-        continue
 
     ID = str(new_User[1])
     Name = str(new_User[0])
@@ -92,4 +90,7 @@ def Update_User_Photo(database, frame):
 
 
 if __name__ == '__main__':
-    Update_User_Photo('./Release/teacher.db')
+    video_num = 0
+    video_capture = cv2.VideoCapture(video_num)
+    _, frame = video_capture.read()
+    Update_User_Photo('./Release/teacher.db', frame)
