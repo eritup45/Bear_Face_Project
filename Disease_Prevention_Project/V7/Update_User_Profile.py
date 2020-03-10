@@ -20,7 +20,7 @@ def Update_one_face_in_db(database, img_name, user_p):
         for i, data in enumerate(adapt_list(list_of_face_encodings)):
             if i >= 1:
                 print('Find two faces in: ', img_name)
-                break
+                return False
             c.execute("UPDATE User_Profile \
                 SET Encoded_face = '{}', Unit_id = '{}', Unit_name = '{}', ID = '{}', Name = '{}', Title_name = '{}'\
                 WHERE ID = '{}'".format(data, user_p[0], user_p[1], user_p[2], user_p[3], user_p[4], user_p[2]))
