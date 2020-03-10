@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from pathlib import Path
 import sys
-from Combine_database import fetch_newest_temperature_db, Update_Measure_Info
+from Combine_database import fetch_newest_temperature_db
 from get_file_path import get_file_path
 import cProfile
 
@@ -203,7 +203,6 @@ def main():
                     data = fetch_newest_temperature_db(database_name)
                     measure_info_profile = [person_id, None]
                     measure_info_profile.extend(data)
-                    # Update_Measure_Info(database_name, data)
                     Insert_Measure_Info(database_name, measure_info_profile)
 
                     print('寫入:', end='')
