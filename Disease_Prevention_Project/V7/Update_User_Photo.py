@@ -49,16 +49,16 @@ def Update_User_Photo(database, frame):
 
     ID = str(new_User[1])
     Name = str(new_User[0])
-    user_profile = [None, None, ID, Name, None]
-
+    
     photo_path = save_photo(ID, pic_dir, frame)
     data_list = []
     for data in c.execute("SELECT\
         Unit_id, Unit_name, ID, Name, Title_name\
                 FROM User_Profile Where Name = '{}'".format(Name)):
         # [[Unit_id, Unit_name, ID, Name, Title_name], ... ]
-        data_list.append(data[0] + data[1] + data[2] + data[3] + data[4])
+        data_list.append([ data[0], data[1], data[2], data[3], data[4] ])
     # ID not found
+    user_profile = [None, None, ID, Name, None]
     if len(data_list) == 0:
         if(Insert_one_face_in_db(database, photo_path, user_profile)):
             easygui.msgbox('未找到符合身分。加入資料庫')
@@ -78,7 +78,9 @@ def Update_User_Photo(database, frame):
             easygui.msgbox('臉部偵測錯誤，請重新檢測!')
     # Normal case
     else:
-        user_profile = data_list
+        user_profile = data_list[0]
+        print(len(user_profile))
+        print(user_profile)
         if(Update_one_face_in_db(database, photo_path, user_profile)):
             easygui.msgbox('更新成功!')
         else:
