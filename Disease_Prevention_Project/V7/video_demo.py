@@ -8,7 +8,9 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from pathlib import Path
 import sys
-import cProfile
+import multiprocessing as mp
+import psutil
+# import yappi
 
 from get_db import get_user_profiles
 from Combine_database import fetch_newest_temperature_db
@@ -18,6 +20,8 @@ from Update_User_Photo import Update_User_Photo
 
 # Return:
 # id: the id of the minimum distance
+
+
 def find_closest(list_of_face_encodings, unknown_face_encoding):
     distances = face_recognition.face_distance(
         list_of_face_encodings, unknown_face_encoding)
@@ -117,6 +121,13 @@ def is_new_person(time_dict, name, now):
         .total_seconds() > span
 
 
+def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
+    while True:
+        (frame, locations, order) = encode_request_queue.get()
+        encodings = face_recognition.face_encodings(frame, locations)
+        encode_result_queue.put((encodings, order))
+
+
 def main():
     if len(sys.argv) >= 3:
         video_num = int(sys.argv[2])
@@ -129,26 +140,29 @@ def main():
     user_profiles = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profiles]
 
-    font = ImageFont.truetype(
-        str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
     prev_locations = []  # Previous face locations in buffered frames
     prev_encodings = []  # Previous face encodings in buffered frames
     # Indices of previous matched encodings in buffered frames
     prev_matched_ids = []
     time_dict = {}  # {id: leaving_time}
-    last_detected_time = dt.datetime.min
+    last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
     locations = []
-
     record_frame_count = 0
+
+    available_cpus = psutil.Process().cpu_affinity()
+    encode_request_queue = mp.Queue(maxsize=len(available_cpus))
+    encode_result_queue = mp.Queue()
 
     video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
     video_height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT) * frame_scale
     video_width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH) * frame_scale
-
     detect_edge_ratio = 6.5
     detect_rect_ = detect_rect((video_height, video_width), detect_edge_ratio)
+    font = ImageFont.truetype(
+        str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
+
     for frame_count in itertools.count():
         while True:
             input_key = cv2.waitKey(1)
@@ -159,6 +173,8 @@ def main():
             # press s to update database and save pictures
             if input_key & 0xFF == ord('s'):
                 Update_User_Photo(database_name, frame)
+                user_profiles = get_user_profiles(database_name)
+                known_face_encodings = [x[0] for x in user_profiles]
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_frame = small_frame[:, :, ::-1]
@@ -169,12 +185,11 @@ def main():
             new_locations = [x for x
                              in face_recognition.face_locations(rgb_frame)
                              if in_detect_range(x, detect_rect_)]
-            if len(locations) > 0 or (
-                    dt.datetime.now() - last_detected_time
-            ).total_seconds() > 2.0:
+            if len(locations) > 0 or (dt.datetime.now() - last_record_time
+                                      ).total_seconds() > 2.0:
                 break
         locations = new_locations
-        last_detected_time = dt.datetime.now()
+        last_record_time = dt.datetime.now()
         encodings = face_recognition.face_encodings(rgb_frame, locations)
         matched_ids = [find_closest(known_face_encodings, x)
                        for x in encodings]
@@ -206,7 +221,7 @@ def main():
                 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
                 if is_new_person(time_dict, name, now):
                     data = fetch_newest_temperature_db(database_name)
-                    measure_info_profile = [person_id, None] + list(data)
+                    measure_info_profile = [person_id] + list(data)
                     Insert_Measure_Info(database_name, measure_info_profile)
 
                     print('寫入:', end='')
@@ -217,5 +232,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # cProfile.run('main()')
     main()
