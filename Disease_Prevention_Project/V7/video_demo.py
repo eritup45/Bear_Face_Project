@@ -191,16 +191,16 @@ def main():
                     id = Counter(ids).most_common(1)[0][0]
                     distance = face_recognition.face_distance(
                         (known_face_encodings)[id: id+1], encoding)[0]
-                    user_id = ('guest' if distance > tolerance
-                               else user_profiles[id][1])
+                    person_id = ('guest' if distance > tolerance
+                                 else user_profiles[id][1])
                     name = ('訪客' if distance > tolerance
                             else user_profiles[id][2])
-                    results.append((name, user_id, distance))
+                    results.append((name, person_id, distance))
             now = datetime.now()
-            for name, user_id, _ in results:
+            for name, person_id, _ in results:
                 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
                 if is_new_person(time_dict, name, now):
-                    Insert_Measure_Info(database_name, [user_id, None])
+                    Insert_Measure_Info(database_name, [person_id, None])
                     data = fetch_newest_temperature_db(database_name)
                     Update_Measure_Info(database_name, data)
                     print('寫入:', end='')
