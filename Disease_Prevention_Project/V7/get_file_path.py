@@ -12,6 +12,7 @@ import sys
 def get_file_path():
     if len(sys.argv) >= 2:
         return sys.argv[1]
+    # Use as debug
     else:
         return str(Path(__file__).parent)
     # try:

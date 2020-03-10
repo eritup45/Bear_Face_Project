@@ -1,21 +1,22 @@
 import cv2
 from datetime import datetime
-from get_db import get_user_profiles
 import face_recognition
 import datetime as dt
 from collections import Counter
 import itertools
-from Insert_Measure_Info import Insert_Measure_Info
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from pathlib import Path
 import sys
-from Combine_database import fetch_newest_temperature_db, Update_Measure_Info
-from get_file_path import get_file_path
 import multiprocessing as mp
 import psutil
 # import yappi
 
+from get_db import get_user_profiles
+from Combine_database import fetch_newest_temperature_db
+from get_file_path import get_file_path
+from Insert_Measure_Info import Insert_Measure_Info
+from Update_User_Photo import Update_User_Photo
 
 # Return:
 # id: the id of the minimum distance
@@ -162,10 +163,14 @@ def main():
 
     for frame_count in itertools.count():
         while True:
+            input_key = cv2.waitKey(1)
             # Press q to quit
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if input_key & 0xFF == ord('q'):
                 return
             _, frame = video_capture.read()
+            # press s to update database and save pictures
+            if input_key & 0xFF == ord('s'):
+                Update_User_Photo(database_name, frame)
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_frame = small_frame[:, :, ::-1]
@@ -211,9 +216,10 @@ def main():
             for name, person_id, _ in results:
                 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
                 if is_new_person(time_dict, name, now):
-                    Insert_Measure_Info(database_name, [person_id, None])
                     data = fetch_newest_temperature_db(database_name)
-                    Update_Measure_Info(database_name, data)
+                    measure_info_profile = [person_id] + list(data)
+                    Insert_Measure_Info(database_name, measure_info_profile)
+
                     print('寫入:', end='')
                 print(name)
 
