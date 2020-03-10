@@ -20,6 +20,8 @@ from Update_User_Photo import Update_User_Photo
 
 # Return:
 # id: the id of the minimum distance
+
+
 def find_closest(list_of_face_encodings, unknown_face_encoding):
     distances = face_recognition.face_distance(
         list_of_face_encodings, unknown_face_encoding)
@@ -171,6 +173,8 @@ def main():
             # press s to update database and save pictures
             if input_key & 0xFF == ord('s'):
                 Update_User_Photo(database_name, frame)
+                user_profiles = get_user_profiles(database_name)
+                known_face_encodings = [x[0] for x in user_profiles]
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_frame = small_frame[:, :, ::-1]
