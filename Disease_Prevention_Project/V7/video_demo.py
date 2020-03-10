@@ -151,12 +151,13 @@ def main():
     detect_rect_ = detect_rect((video_height, video_width), detect_edge_ratio)
     for frame_count in itertools.count():
         while True:
+            input_key = cv2.waitKey(1)
             # Press q to quit
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if input_key & 0xFF == ord('q'):
                 return
             _, frame = video_capture.read()
             # press s to update database and save pictures
-            if cv2.waitKey(1) & 0xFF == ord('s'):
+            if input_key & 0xFF == ord('s'):
                 Update_User_Photo(database_name, frame)
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
