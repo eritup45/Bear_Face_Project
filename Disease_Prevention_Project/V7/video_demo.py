@@ -12,6 +12,7 @@ from pathlib import Path
 import sys
 from Combine_database import fetch_newest_temperature_db, Update_Measure_Info
 from get_file_path import get_file_path
+import cProfile
 
 
 # Return:
@@ -70,7 +71,7 @@ def draw_results(frame, locations, results, tolerance,
     draw = ImageDraw.Draw(rgb_frame)
     draw.rectangle([(detect_left, detect_top), (detect_right, detect_bottom)],
                    fill=None, outline=rectColor, width=5)
-    for (top, right, bottom, left), (name, distance)\
+    for (top, right, bottom, left), (name, _, distance)\
             in zip(locations, results):
         top *= scale
         right *= scale
@@ -190,23 +191,25 @@ def main():
                     id = Counter(ids).most_common(1)[0][0]
                     distance = face_recognition.face_distance(
                         (known_face_encodings)[id: id+1], encoding)[0]
+                    user_id = ('guest' if distance > tolerance
+                               else user_profiles[id][1])
                     name = ('訪客' if distance > tolerance
                             else user_profiles[id][2])
-                    results.append((name, distance))
+                    results.append((name, user_id, distance))
             now = datetime.now()
-            for name, _ in results:
+            for name, user_id, _ in results:
                 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
                 if is_new_person(time_dict, name, now):
-                    Insert_Measure_Info(database_name, [name, now])
+                    Insert_Measure_Info(database_name, [user_id, None])
                     data = fetch_newest_temperature_db(database_name)
                     Update_Measure_Info(database_name, data)
-                    print(f'寫入:{name}')
-                else:
-                    print(f'不寫入:{name}')
+                    print('寫入:', end='')
+                print(name)
 
-            for name, _ in results:
+            for name, _, _ in results:
                 time_dict[name] = now
 
 
 if __name__ == '__main__':
+    # cProfile.run('main()')
     main()
