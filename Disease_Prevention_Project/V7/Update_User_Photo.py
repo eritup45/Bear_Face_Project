@@ -35,14 +35,16 @@ def Update_User_Photo(database, frame):
         new_User = easygui.enterbox(msg="請輸入：\"姓名 身分證後五碼\" (中間請用空格隔開)\n"\
             ,title='新增/更新臉部資料').split()
         if len(new_User) != 2:
+            print('Insert Error')
             easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
             return
     except:
         easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
+        return
 
     ID = str(new_User[1])
     Name = str(new_User[0])
-
+    # Only 5 words accepted
     if len(ID) != 5:
         easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
         return
