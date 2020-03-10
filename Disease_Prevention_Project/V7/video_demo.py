@@ -205,7 +205,7 @@ def main():
                 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
                 if is_new_person(time_dict, name, now):
                     data = fetch_newest_temperature_db(database_name)
-                    measure_info_profile = [person_id, None] + data
+                    measure_info_profile = [person_id, None] + list(data)
                     Insert_Measure_Info(database_name, measure_info_profile)
 
                     print('寫入:', end='')

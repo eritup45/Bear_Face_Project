@@ -13,7 +13,7 @@ def Insert_Measure_Info(database, info):
     Temp_Index = str(info[4])
     conn = sqlite3.connect(dirname)
     c = conn.cursor()
-    c.execute("INSERT INTO Measure_Info (ID, Date) \
+    c.execute("INSERT INTO Measure_Info (ID, Date, Temp, Status, Temp_Index) \
                     VALUES ('{}', '{}', '{}', '{}', '{}')".format(ID, Date, Temp, Status, Temp_Index))
     conn.commit()
     conn.close()
