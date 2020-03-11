@@ -143,6 +143,10 @@ def push_list_queue(list_: list, new_elements: list, queue_size: int):
 
 
 def main():
+    # Fix pyinstaller's bug
+    mp.freeze_support()
+    mp.set_start_method('spawn')
+
     if len(sys.argv) >= 3:
         video_num = int(sys.argv[2])
     else:
