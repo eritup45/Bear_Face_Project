@@ -121,11 +121,25 @@ def is_new_person(time_dict, name, now):
         .total_seconds() > span
 
 
-def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
-    while True:
-        (frame, locations, order) = encode_request_queue.get()
-        encodings = face_recognition.face_encodings(frame, locations)
-        encode_result_queue.put((encodings, order))
+def encode(frame, locations):
+    encodings = face_recognition.face_encodings(frame, locations)
+    return encodings
+
+
+# def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
+#     while True:
+#         (frame, locations, order) = encode_request_queue.get()
+#         encodings = face_recognition.face_encodings(frame, locations)
+#         encode_result_queue.put((encodings, order))
+
+# Push new elements into the given list,
+#  and pop old elements like a queue.
+def push_list_queue(list_: list, new_elements: list, queue_size: int):
+    size_sum = len(list_) + len(new_elements)
+    start = (0 if size_sum < queue_size
+             else size_sum - queue_size)
+    list_ = list_[start:] + new_elements
+    return list_
 
 
 def main():
@@ -135,7 +149,7 @@ def main():
         video_num = 0
     database_name = './Release/teacher.db'
     tolerance = 0.385
-    frame_buffer_size = 6  # number of buffered frames to generate result
+    buffer_duration = 2  # Frames within this duration will be buffered
     # [[en_face, ID, Name], ...]
     user_profiles = get_user_profiles(database_name)
     known_face_encodings = [x[0] for x in user_profiles]
@@ -144,6 +158,8 @@ def main():
     prev_encodings = []  # Previous face encodings in buffered frames
     # Indices of previous matched encodings in buffered frames
     prev_matched_ids = []
+    prev_frames = []
+    prev_times = []
     time_dict = {}  # {id: leaving_time}
     last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
@@ -151,8 +167,10 @@ def main():
     record_frame_count = 0
 
     available_cpus = psutil.Process().cpu_affinity()
-    encode_request_queue = mp.Queue(maxsize=len(available_cpus))
+    cpu_count = len(available_cpus)
+    encode_request_queue = mp.Queue(maxsize=cpu_count)
     encode_result_queue = mp.Queue()
+    pool = mp.Pool(processes=cpu_count)
 
     video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
@@ -188,25 +206,43 @@ def main():
             if len(locations) > 0 or (dt.datetime.now() - last_record_time
                                       ).total_seconds() > 2.0:
                 break
-        locations = new_locations
-        last_record_time = dt.datetime.now()
-        encodings = face_recognition.face_encodings(rgb_frame, locations)
-        matched_ids = [find_closest(known_face_encodings, x)
-                       for x in encodings]
-        start = 0 if len(prev_locations) < frame_buffer_size else 1
-        prev_locations[0:] = prev_locations[start:] + [locations]
-        prev_encodings[0:] = prev_encodings[start:] + [encodings]
-        prev_matched_ids[0:] = prev_matched_ids[start:] + [matched_ids]
         record_frame_count += 1
-        # Generate results every 2 frames
-        if record_frame_count % 2 == 0:
+        last_record_time = dt.datetime.now()
+        locations = new_locations
+        now = dt.datetime.now()
+        frame_buffer_size = 1
+        for i, time in enumerate(prev_times):
+            if (now - time).total_seconds() < buffer_duration:
+                frame_buffer_size = len(prev_times) - i + 1
+                break
+        frame_buffer_size = max(frame_buffer_size, cpu_count)
+        prev_times = push_list_queue(prev_times, [now], frame_buffer_size)
+        prev_locations = push_list_queue(
+            prev_locations, [locations], frame_buffer_size)
+        prev_frames = push_list_queue(
+            prev_frames, [rgb_frame], frame_buffer_size)
+        # Generate results every cpu_count frames
+        if record_frame_count % cpu_count == 0:
+            print(frame_buffer_size)
+            encodings = pool.starmap(
+                encode,
+                [(prev_frames[i], prev_locations[i])
+                 for i in range(-cpu_count, 0)]
+            )
+            matched_ids = [[find_closest(known_face_encodings, x)
+                            for x in y] for y in encodings]
+            prev_encodings = push_list_queue(
+                prev_encodings, encodings, frame_buffer_size)
+            prev_matched_ids = push_list_queue(
+                prev_matched_ids, matched_ids, frame_buffer_size)
             # Get the indices of encodings that have the most matching
             indices_list = same_face_indices(
                 prev_encodings, prev_locations, tolerance)
-            if False not in [len(x) >= 4 for x in indices_list]:
+            if False not in [len(x) >= len(prev_encodings) // 2
+                             for x in indices_list]:
                 results = []
                 for encoding, location, indices in zip(
-                        encodings, locations, indices_list):
+                        encodings[-1], locations, indices_list):
                     ids = [prev_matched_ids[row][col] for row, col in indices]
                     id = Counter(ids).most_common(1)[0][0]
                     distance = face_recognition.face_distance(
@@ -217,18 +253,24 @@ def main():
                             else user_profiles[id][2])
                     results.append((name, person_id, distance))
             now = datetime.now()
-            for name, person_id, _ in results:
-                # 若根據偵測時間判斷為新的人，將資料寫進資料庫
-                if is_new_person(time_dict, name, now):
-                    data = fetch_newest_temperature_db(database_name)
-                    measure_info_profile = [person_id] + list(data)
-                    Insert_Measure_Info(database_name, measure_info_profile)
+            new_people = [(name, id) for name, id, _ in results
+                          if is_new_person(time_dict, name, now)]
+            old_people = [(name, id) for name, id, _ in results
+                          if not is_new_person(time_dict, name, now)]
+            # 若根據偵測時間判斷為新的人，將資料寫進資料庫
+            for name, id in new_people:
+                data = fetch_newest_temperature_db(database_name)
+                measure_info_profile = [id] + list(data)
+                Insert_Measure_Info(database_name, measure_info_profile)
+                print(f'寫入:{name}')
 
-                    print('寫入:', end='')
-                print(name)
+            for name, _ in old_people:
+                print(f'不寫入:{name}')
 
             for name, _, _ in results:
                 time_dict[name] = now
+    pool.join()
+    print('Main ended')
 
 
 if __name__ == '__main__':
