@@ -253,15 +253,19 @@ def main():
                             else user_profiles[id][2])
                     results.append((name, person_id, distance))
             now = datetime.now()
-            for name, person_id, _ in results:
-                # 若根據偵測時間判斷為新的人，將資料寫進資料庫
-                if is_new_person(time_dict, name, now):
-                    data = fetch_newest_temperature_db(database_name)
-                    measure_info_profile = [person_id] + list(data)
-                    Insert_Measure_Info(database_name, measure_info_profile)
+            new_people = [(name, id) for name, id, _ in results
+                          if is_new_person(time_dict, name, now)]
+            old_people = [(name, id) for name, id, _ in results
+                          if is_new_person(time_dict, name, now)]
+            # 若根據偵測時間判斷為新的人，將資料寫進資料庫
+            for name, id in new_people:
+                data = fetch_newest_temperature_db(database_name)
+                measure_info_profile = [id] + list(data)
+                Insert_Measure_Info(database_name, measure_info_profile)
+                print(f'寫入:{name}')
 
-                    print('寫入:', end='')
-                print(name)
+            for name, _ in old_people:
+                print(f'不寫入:{name}')
 
             for name, _, _ in results:
                 time_dict[name] = now
