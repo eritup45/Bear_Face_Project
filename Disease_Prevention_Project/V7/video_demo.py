@@ -71,7 +71,7 @@ def draw_results(frame, locations, results, tolerance,
                  font, scale, detect_rect_):
     rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     detect_top, detect_right, detect_bottom, detect_left = [
-        x * 2 for x in detect_rect_]
+        x * scale for x in detect_rect_]
     rectColor = (0, 0, 255)
     draw = ImageDraw.Draw(rgb_frame)
     draw.rectangle([(detect_left, detect_top), (detect_right, detect_bottom)],
