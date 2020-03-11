@@ -204,7 +204,7 @@ def main():
                              in face_recognition.face_locations(rgb_frame)
                              if in_detect_range(x, detect_rect_)]
             if len(locations) > 0 or (dt.datetime.now() - last_record_time
-                                      ).total_seconds() > 2.0:
+                                      ).total_seconds() > buffer_duration:
                 break
         record_frame_count += 1
         last_record_time = dt.datetime.now()
