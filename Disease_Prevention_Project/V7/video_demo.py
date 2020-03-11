@@ -256,7 +256,7 @@ def main():
             new_people = [(name, id) for name, id, _ in results
                           if is_new_person(time_dict, name, now)]
             old_people = [(name, id) for name, id, _ in results
-                          if is_new_person(time_dict, name, now)]
+                          if not is_new_person(time_dict, name, now)]
             # 若根據偵測時間判斷為新的人，將資料寫進資料庫
             for name, id in new_people:
                 data = fetch_newest_temperature_db(database_name)
