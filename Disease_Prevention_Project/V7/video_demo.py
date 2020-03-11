@@ -227,7 +227,6 @@ def main():
             prev_frames, [rgb_frame], frame_buffer_size)
         # Generate results every cpu_count frames
         if record_frame_count % cpu_count == 0:
-            print(frame_buffer_size)
             encodings = pool.starmap(
                 encode,
                 [(prev_frames[i], prev_locations[i])
@@ -268,8 +267,8 @@ def main():
                 Insert_Measure_Info(database_name, measure_info_profile)
                 print(f'寫入:{name}')
 
-            for name, _ in old_people:
-                print(f'不寫入:{name}')
+            # for name, _ in old_people:
+            #     print(f'不寫入:{name}')
 
             for name, _, _ in results:
                 time_dict[name] = now
