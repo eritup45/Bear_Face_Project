@@ -16,7 +16,8 @@ def five_last_ID(ID):
 
 # Return path of photo and save in ./pictures
 def save_photo(ID, pic_dir, frame):
-    cv2.imwrite(str(Path(pic_dir).joinpath(str(ID) + ".jpg")), frame)
+    # cv2.imwrite(str(Path(pic_dir).joinpath(str(ID) + ".jpg")), frame)
+    cv2.imencode('.jpg', frame)[1].tofile(str(Path(pic_dir).joinpath(str(ID) + ".jpg")))
     return str(Path(pic_dir).joinpath(str(ID) + ".jpg"))
 
 # Update new face in databse 
@@ -26,8 +27,6 @@ def Update_User_Photo(database, frame):
     database = str(root_dir.joinpath(database))
     pic_dir = str(root_dir.joinpath('./pictures'))
 
-    conn = sqlite3.connect(database)
-    c = conn.cursor()
     if not os.path.isdir(pic_dir):
         os.makedirs(pic_dir)
 
@@ -50,12 +49,16 @@ def Update_User_Photo(database, frame):
         return
     
     photo_path = save_photo(ID, pic_dir, frame)
+    conn = sqlite3.connect(database)
+    c = conn.cursor()
     data_list = []
     for data in c.execute("SELECT\
         Unit_id, Unit_name, ID, Name, Title_name\
                 FROM User_Profile Where Name = '{}'".format(Name)):
         # [[Unit_id, Unit_name, ID, Name, Title_name], ... ]
         data_list.append([ data[0], data[1], data[2], data[3], data[4] ])
+    conn.commit()
+    conn.close()
     # ID not found
     user_profile = [None, None, ID, Name, None]
     if len(data_list) == 0:
@@ -84,8 +87,6 @@ def Update_User_Photo(database, frame):
         else:
             easygui.msgbox('臉部偵測錯誤，請重新檢測!')
 
-    conn.commit()
-    conn.close()
 
 
 if __name__ == '__main__':
