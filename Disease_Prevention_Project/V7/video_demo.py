@@ -23,9 +23,10 @@ from Update_User_Photo import Update_User_Photo
 def find_closest(distances):
     return distances.argmin()
 
-
 # Get the indices of faces in a list of frames which
 #  corresponding to each face in the last frame.
+
+
 def same_face_indices(prev_encodings, prev_locations, tolerance):
     selected_bools = []
     for col, x in enumerate(prev_encodings):
@@ -63,22 +64,21 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
 
 
 def info_hud(frame_size, font, location_scale, detect_rect_):
-    detect_top, detect_right, detect_bottom, detect_left = [
-        x * location_scale for x in detect_rect_]
+    detect_top, detect_right, detect_bottom, detect_left = detect_rect_
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(hud)
     textColor = (0, 0, 255)
     draw.text((detect_left + 10, detect_top + 10),
-                '按s更新圖片',
-                font=font, fill=textColor)
+              '按s更新圖片',
+              font=font, fill=textColor)
     return hud
+
 
 def result_hud(frame_size, locations, results, tolerance,
                font, location_scale, detect_rect_):
 
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
-    detect_top, detect_right, detect_bottom, detect_left = [
-        x * location_scale for x in detect_rect_]
+    detect_top, detect_right, detect_bottom, detect_left = detect_rect_
     rectColor = (0, 0, 0, 255)
     draw = ImageDraw.Draw(hud)
     draw.rectangle([(0, detect_bottom),
@@ -105,6 +105,7 @@ def result_hud(frame_size, locations, results, tolerance,
                   font=font, fill=textColor)
     return hud
 
+
 # Return (top, left, bottom, right)
 def detect_rect(frame_size, ratio):
     frame_width, frame_height = frame_size
@@ -114,9 +115,9 @@ def detect_rect(frame_size, ratio):
             frame_width / ratio)
 
 
-def in_detect_range(face_rect, detect_rect_):
+def in_detect_range(face_rect, detect_rect_, face_scale):
     detect_top, detect_right, detect_bottom, detect_left = detect_rect_
-    top, right, bottom, left = face_rect
+    top, right, bottom, left = [x * face_scale for x in face_rect]
     return (top > detect_top
             and right < detect_right
             and bottom < detect_bottom
@@ -134,12 +135,6 @@ def encode(frame, locations):
     return encodings
 
 
-# def encode(encode_request_queue: mp.Queue, encode_result_queue: mp.Queue):
-#     while True:
-#         (frame, locations, order) = encode_request_queue.get()
-#         encodings = face_recognition.face_encodings(frame, locations)
-#         encode_result_queue.put((encodings, order))
-
 # Push new elements into the given list,
 #  and pop old elements like a queue.
 def push_list_queue(list_: list, new_elements: list, queue_size: int):
@@ -148,6 +143,52 @@ def push_list_queue(list_: list, new_elements: list, queue_size: int):
              else size_sum - queue_size)
     list_ = list_[start:] + new_elements
     return list_
+
+
+def get_available_cpu_count():
+    return len(psutil.Process().cpu_affinity())
+
+
+# Get the indices of encodings that have the most matching
+def detection_results(user_profiles, prev_locations, prev_encodings,
+                      prev_distances, prev_matched_ids, tolerance):
+    indices_list = same_face_indices(prev_encodings, prev_locations, tolerance)
+    if False in [len(x) >= len(prev_encodings) // 2 for x in indices_list]:
+        return None
+    results = []
+    for encoding, location, indices in zip(
+            prev_encodings[-1], prev_locations[-1], indices_list):
+        matched_indices = [(row, col) for row, col in indices
+                           if prev_distances[row][col][
+            prev_matched_ids[row][col]] <= tolerance]
+        if len(matched_indices) > 0:
+            ids = [prev_matched_ids[row][col] for row, col in matched_indices]
+            id = Counter(ids).most_common(1)[0][0]
+            person_id = user_profiles[id][1]
+            name = user_profiles[id][2]
+            distance = np.mean(
+                [prev_distances[row][col][prev_matched_ids[row][col]]
+                    for row, col in matched_indices
+                    if prev_matched_ids[row][col] == id]
+            )
+        else:
+            person_id = 'guest'
+            name = '訪客'
+            distance = min([prev_distances[row][col].min()
+                            for row, col in indices])
+        results.append((name, person_id, distance))
+    return results
+
+
+# 若根據偵測時間判斷為新的人，將資料寫進資料庫
+def record_new_measures(time_dict, now, results, db_name):
+    new_people = [(name, id) for name, id, _ in results
+                  if is_new_person(time_dict, name, now)]
+    for name, id in new_people:
+        data = fetch_newest_temperature_db(db_name)
+        measure_info_profile = [id] + list(data)
+        Insert_Measure_Info(db_name, measure_info_profile)
+        print(f'寫入:{name}')
 
 
 def main():
@@ -177,10 +218,8 @@ def main():
     last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
     locations = []
-    record_frame_count = 0
 
-    available_cpus = psutil.Process().cpu_affinity()
-    cpu_count = len(available_cpus)
+    cpu_count = get_available_cpu_count()
     pool = mp.Pool(processes=cpu_count)
 
     video_capture = cv2.VideoCapture(video_num)
@@ -188,9 +227,8 @@ def main():
     video_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     video_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     detect_edge_ratio = 12
-    detect_rect_ = detect_rect(
-        (int(video_width * frame_scale), int(video_height * frame_scale)),
-        detect_edge_ratio)
+    detect_rect_ = detect_rect((int(video_width), int(video_height)),
+                               detect_edge_ratio)
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
 
@@ -206,31 +244,31 @@ def main():
                 Update_User_Photo(database_name, frame)
                 user_profiles = get_user_profiles(database_name)
                 known_face_encodings = [x[0] for x in user_profiles]
-            
-            info_Hud = info_hud((video_width, video_height), font,\
-                1 / frame_scale, detect_rect_)
+
+            info_Hud = info_hud((video_width, video_height), font,
+                                detect_rect_)
             result_Hud = result_hud((video_width, video_height), locations,
-                             results, tolerance, font, 1 / frame_scale,
-                             detect_rect_)
+                                    results, tolerance, font, 1 / frame_scale,
+                                    detect_rect_)
             rgb_frame = Image.fromarray(cv2.cvtColor(
                 frame, cv2.COLOR_BGR2RGB)).convert('RGBA')
-            rgb_frame = Image.alpha_composite(rgb_frame, info_Hud)
-            result_frame = Image.alpha_composite(rgb_frame, result_Hud)
-            cv2_result_frame = cv2.cvtColor(
-                np.asarray(result_frame), cv2.COLOR_RGB2BGR)
-            detect_rect_scaled = [int(x / frame_scale) for x in detect_rect_]
-            cv2.imshow('Video', cv2_result_frame[
-                detect_rect_scaled[0]:,
-                detect_rect_scaled[3]:detect_rect_scaled[1]])
+            rgb_frame = Image.alpha_composite(
+                Image.alpha_composite(rgb_frame, info_Hud),
+                result_Hud
+            )
+            result_frame = np.asarray(rgb_frame)[
+                detect_rect_[0]:, detect_rect_[3]:detect_rect_[1]]
+            cv2_result_frame = cv2.cvtColor(result_frame, cv2.COLOR_RGB2BGR)
+            cv2.imshow('Video', cv2_result_frame)
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
-            rgb_small_frame = small_frame[:, :, ::-1]
-            new_locations = [x for x in face_recognition.face_locations(
-                rgb_small_frame) if in_detect_range(x, detect_rect_)]
+            rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+            new_locations = [
+                x for x in face_recognition.face_locations(rgb_small_frame)
+                if in_detect_range(x, detect_rect_, 1 / frame_scale)]
             if len(new_locations) > 0 or (dt.datetime.now() - last_record_time
                                           ).total_seconds() > buffer_duration:
                 break
-        record_frame_count += 1
         last_record_time = dt.datetime.now()
         locations = new_locations
         now = dt.datetime.now()
@@ -246,7 +284,7 @@ def main():
         prev_frames = push_list_queue(
             prev_frames, [rgb_small_frame], frame_buffer_size)
         # Generate results every cpu_count frames
-        if record_frame_count % cpu_count == 0:
+        if frame_count % cpu_count == cpu_count - 1:
             encodings = pool.starmap(
                 encode,
                 [(prev_frames[i], prev_locations[i])
@@ -261,49 +299,14 @@ def main():
                 prev_distances, distances, frame_buffer_size)
             prev_matched_ids = push_list_queue(
                 prev_matched_ids, matched_ids, frame_buffer_size)
-            # Get the indices of encodings that have the most matching
-            indices_list = same_face_indices(
-                prev_encodings, prev_locations, tolerance)
-            if False not in [len(x) >= len(prev_encodings) // 2
-                             for x in indices_list]:
-                results = []
-                for encoding, location, indices in zip(
-                        encodings[-1], locations, indices_list):
-                    matched_indices = [
-                        (row, col) for row, col in indices
-                        if prev_distances[row][col][
-                            prev_matched_ids[row][col]] <= tolerance]
-                    if len(matched_indices) > 0:
-                        ids = [prev_matched_ids[row][col]
-                               for row, col in matched_indices]
-                        id = Counter(ids).most_common(1)[0][0]
-                        person_id = user_profiles[id][1]
-                        name = user_profiles[id][2]
-                        distance = np.mean(
-                            [prev_distances[row][col][
-                                prev_matched_ids[row][col]]
-                             for row, col in matched_indices
-                             if prev_matched_ids[row][col] == id]
-                        )
-                    else:
-                        person_id = 'guest'
-                        name = '訪客'
-                        distance = min([prev_distances[row][col].min()
-                                        for row, col in indices])
-                    results.append((name, person_id, distance))
+            new_results = detection_results(
+                user_profiles, prev_locations, prev_encodings,
+                prev_distances, prev_matched_ids, tolerance
+            )
+            if new_results is not None:
+                results = new_results
             now = datetime.now()
-            new_people = [(name, id) for name, id, _ in results
-                          if is_new_person(time_dict, name, now)]
-            # 若根據偵測時間判斷為新的人，將資料寫進資料庫
-            for name, id in new_people:
-                data = fetch_newest_temperature_db(database_name)
-                measure_info_profile = [id] + list(data)
-                Insert_Measure_Info(database_name, measure_info_profile)
-                print(f'寫入:{name}')
-
-            # for name, _ in old_people:
-            #     print(f'不寫入:{name}')
-
+            record_new_measures(time_dict, now, results, database_name)
             for name, _, _ in results:
                 time_dict[name] = now
     pool.join()
