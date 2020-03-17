@@ -99,11 +99,7 @@ def result_hud(frame_size, locations, results, tolerance,
                   font=font, fill=textColor)
     return hud
 
-<<<<<<< HEAD
 # Return (top, left, bottom, right)
-=======
-
->>>>>>> 7af4a8164a5a039fe96f42bf579ef120cf92a2b6
 def detect_rect(frame_size, ratio):
     frame_width, frame_height = frame_size
     return (frame_height / ratio,
