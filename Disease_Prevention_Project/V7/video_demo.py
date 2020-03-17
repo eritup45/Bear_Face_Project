@@ -218,7 +218,6 @@ def main():
     last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
     locations = []
-    record_frame_count = 0
 
     cpu_count = get_available_cpu_count()
     pool = mp.Pool(processes=cpu_count)
@@ -270,7 +269,6 @@ def main():
             if len(new_locations) > 0 or (dt.datetime.now() - last_record_time
                                           ).total_seconds() > buffer_duration:
                 break
-        record_frame_count += 1
         last_record_time = dt.datetime.now()
         locations = new_locations
         now = dt.datetime.now()
@@ -286,7 +284,7 @@ def main():
         prev_frames = push_list_queue(
             prev_frames, [rgb_small_frame], frame_buffer_size)
         # Generate results every cpu_count frames
-        if record_frame_count % cpu_count == 0:
+        if frame_count % cpu_count == cpu_count - 1:
             encodings = pool.starmap(
                 encode,
                 [(prev_frames[i], prev_locations[i])
