@@ -63,7 +63,7 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
     return same_indices
 
 
-def info_hud(frame_size, font, location_scale, detect_rect_):
+def info_hud(frame_size, font, detect_rect_):
     detect_top, detect_right, detect_bottom, detect_left = detect_rect_
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(hud)
@@ -109,10 +109,10 @@ def result_hud(frame_size, locations, results, tolerance,
 # Return (top, left, bottom, right)
 def detect_rect(frame_size, ratio):
     frame_width, frame_height = frame_size
-    return (frame_height / ratio,
-            frame_width * (ratio - 1) / ratio,
-            frame_height * (ratio - 1) / ratio,
-            frame_width / ratio)
+    return (int(frame_height / ratio),
+            int(frame_width * (ratio - 1) / ratio),
+            int(frame_height * (ratio - 1) / ratio),
+            int(frame_width / ratio))
 
 
 def in_detect_range(face_rect, detect_rect_, face_scale):
@@ -227,7 +227,7 @@ def main():
     video_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     video_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     detect_edge_ratio = 12
-    detect_rect_ = detect_rect((int(video_width), int(video_height)),
+    detect_rect_ = detect_rect((video_width, video_height),
                                detect_edge_ratio)
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
