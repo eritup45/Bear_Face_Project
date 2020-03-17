@@ -4,7 +4,9 @@ from pathlib import Path
 import sqlite3
 import json
 
+# written by us
 from Excel import read_excel
+from utils import parse_args
 
 # Return
 # num_classes: how many images' class
@@ -128,31 +130,18 @@ def write_face_encodings_in_db(database, img_directory, excel_file):
                     VALUES ('{}', '{}', '{}', '{}', '{}', '{}')".format(data, Unit_id, Unit_name, ID, Name, Title_name))
                 # print("INSERT succuess: ", filename)
                           
-
-
-    # # 載入圖片
-    # for i, filename in enumerate(image_name):
-    #     cnt = cnt + 1
-    #     print(cnt, image_name)
-    #     image = face_recognition.load_image_file(filename)
-
-    #     # 查詢面部編碼
-    #     list_of_face_encodings = face_recognition.face_encodings(image)
-
-    #     # 在 User_Profile 中插入資料
-    #     if adapt_list(list_of_face_encodings) is not None:
-    #         for i, data in enumerate(adapt_list(list_of_face_encodings)):
-    #             c.execute("INSERT INTO User_Profile (Encoded_face) VALUES ('{}')"
-    #                     .format(data))
-
     # 寫入資料庫(必寫)
     conn.commit()
     conn.close()
 
+# Only accept Excel in form (Unit_id, Unit_name, ID, Name, Title_name, dist_type)
+# Pictures' name should be "same" as ID.
 def main():
-    database = 'teacher2.db'
-    img_directory = 'D:\大三\專題\防疫專案\data\教職員\picture'
-    excel_file = 'D:\大三\專題\防疫專案\data\教職員\現職人員及單位_1090227.xls'
+    args = parse_args()
+    database = args.db
+    img_directory = args.image
+    excel_file = args.excel
+
     write_face_encodings_in_db(database, img_directory, excel_file)
     # print_database(database)
 
