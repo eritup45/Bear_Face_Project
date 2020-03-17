@@ -97,15 +97,7 @@ def draw_results(frame, locations, results, tolerance,
     result_frame = cv2.cvtColor(np.asarray(rgb_frame), cv2.COLOR_RGB2BGR)
     return result_frame
 
-
-# def detect_rect(frame_size, ratio):
-#     frame_height, frame_width = frame_size
-#     return (frame_height / ratio,
-#             frame_width * (ratio - 1) / ratio,
-#             frame_height * (ratio - 1) / ratio,
-#             frame_width / ratio)
-
-# 
+# Return (top, left, bottom, right)
 def detect_rect(frame_size, ratio):
     frame_height, frame_width = frame_size
     return (0,
