@@ -63,6 +63,18 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
     return same_indices
 
 
+def info_hud(frame_size, font, location_scale, detect_rect_):
+    detect_top, detect_right, detect_bottom, detect_left = [
+        x * location_scale for x in detect_rect_]
+    hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(hud)
+    textColor = (0, 0, 255)
+    draw.text((detect_left + 10, detect_top + 10),
+              '按s更新圖片',
+              font=font, fill=textColor)
+    return hud
+
+
 def result_hud(frame_size, locations, results, tolerance,
                font, location_scale, detect_rect_):
 
@@ -96,6 +108,7 @@ def result_hud(frame_size, locations, results, tolerance,
     return hud
 
 
+# Return (top, left, bottom, right)
 def detect_rect(frame_size, ratio):
     frame_width, frame_height = frame_size
     return (frame_height / ratio,
@@ -224,13 +237,20 @@ def main():
                 Update_User_Photo(database_name, frame)
                 user_profiles = get_user_profiles(database_name)
                 known_face_encodings = [x[0] for x in user_profiles]
-            hud = result_hud((video_width, video_height), locations,
-                             results, tolerance, font, 1 / frame_scale,
-                             detect_rect_)
+
+            info_Hud = info_hud((video_width, video_height), font,
+                                1 / frame_scale, detect_rect_)
+            result_Hud = result_hud((video_width, video_height), locations,
+                                    results, tolerance, font, 1 / frame_scale,
+                                    detect_rect_)
             rgb_frame = Image.fromarray(cv2.cvtColor(
                 frame, cv2.COLOR_BGR2RGB)).convert('RGBA')
+            rgb_frame = Image.alpha_composite(
+                Image.alpha_composite(rgb_frame, info_Hud),
+                result_Hud
+            )
             detect_rect_scaled = [int(x / frame_scale) for x in detect_rect_]
-            result_frame = np.asarray(Image.alpha_composite(rgb_frame, hud))[
+            result_frame = np.asarray(rgb_frame)[
                 detect_rect_scaled[0]:,
                 detect_rect_scaled[3]:detect_rect_scaled[1]]
             cv2_result_frame = cv2.cvtColor(result_frame, cv2.COLOR_RGB2BGR)
