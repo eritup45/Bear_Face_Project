@@ -18,15 +18,10 @@ from get_file_path import get_file_path
 from Insert_Measure_Info import Insert_Measure_Info
 from Update_User_Photo import Update_User_Photo
 
-# Return:
-# id: the id of the minimum distance
 
-
-def find_closest(list_of_face_encodings, unknown_face_encoding):
-    distances = face_recognition.face_distance(
-        list_of_face_encodings, unknown_face_encoding)
-    id = distances.argmin()
-    return id
+# Return the index of the minimum distance
+def find_closest(distances):
+    return distances.argmin()
 
 
 # Get the indices of faces in a list of frames which
@@ -56,7 +51,7 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
                 distance = face_recognition.face_distance(
                     [encodings[col]], last_encoding
                 )
-                if distance < min_distance and distance < tolerance\
+                if distance < min_distance and distance <= tolerance\
                         and bools[col] is False:
                     closest = col
                     min_distance = distance
@@ -161,11 +156,12 @@ def main():
     known_face_encodings = [x[0] for x in user_profiles]
 
     prev_locations = []  # Previous face locations in buffered frames
-    prev_encodings = []  # Previous face encodings in buffered frames
-    # Indices of previous matched encodings in buffered frames
-    prev_matched_ids = []
     prev_frames = []
     prev_times = []
+    prev_encodings = []  # Previous face encodings in buffered frames
+    # Indices of previous matched encodings in buffered frames
+    prev_distances = []
+    prev_matched_ids = []
     time_dict = {}  # {id: leaving_time}
     last_record_time = dt.datetime.min
     results = []  # [[closest_id, distance], ...]
@@ -241,10 +237,13 @@ def main():
                 [(prev_frames[i], prev_locations[i])
                  for i in range(-cpu_count, 0)]
             )
-            matched_ids = [[find_closest(known_face_encodings, x)
-                            for x in y] for y in encodings]
+            distances = [[face_recognition.face_distance(
+                known_face_encodings, x) for x in y] for y in encodings]
+            matched_ids = [[find_closest(x) for x in y] for y in distances]
             prev_encodings = push_list_queue(
                 prev_encodings, encodings, frame_buffer_size)
+            prev_distances = push_list_queue(
+                prev_distances, distances, frame_buffer_size)
             prev_matched_ids = push_list_queue(
                 prev_matched_ids, matched_ids, frame_buffer_size)
             # Get the indices of encodings that have the most matching
@@ -255,14 +254,27 @@ def main():
                 results = []
                 for encoding, location, indices in zip(
                         encodings[-1], locations, indices_list):
-                    ids = [prev_matched_ids[row][col] for row, col in indices]
-                    id = Counter(ids).most_common(1)[0][0]
-                    distance = face_recognition.face_distance(
-                        (known_face_encodings)[id: id+1], encoding)[0]
-                    person_id = ('guest' if distance > tolerance
-                                 else user_profiles[id][1])
-                    name = ('訪客' if distance > tolerance
-                            else user_profiles[id][2])
+                    matched_indices = [
+                        (row, col) for row, col in indices
+                        if prev_distances[row][col][
+                            prev_matched_ids[row][col]] <= tolerance]
+                    if len(matched_indices) > 0:
+                        ids = [prev_matched_ids[row][col]
+                               for row, col in matched_indices]
+                        id = Counter(ids).most_common(1)[0][0]
+                        person_id = user_profiles[id][1]
+                        name = user_profiles[id][2]
+                        distance = np.mean(
+                            [prev_distances[row][col][
+                                prev_matched_ids[row][col]]
+                             for row, col in matched_indices
+                             if prev_matched_ids[row][col] == id]
+                        )
+                    else:
+                        person_id = 'guest'
+                        name = '訪客'
+                        distance = min([prev_distances[row][col].min()
+                                        for row, col in indices])
                     results.append((name, person_id, distance))
             now = datetime.now()
             new_people = [(name, id) for name, id, _ in results
