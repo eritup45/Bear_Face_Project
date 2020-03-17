@@ -245,8 +245,7 @@ def main():
                 user_profiles = get_user_profiles(database_name)
                 known_face_encodings = [x[0] for x in user_profiles]
 
-            info_Hud = info_hud((video_width, video_height), font,
-                                1 / frame_scale, detect_rect_)
+            info_Hud = info_hud((video_width, video_height), font, detect_rect_)
             result_Hud = result_hud((video_width, video_height), locations,
                                     results, tolerance, font, 1 / frame_scale,
                                     detect_rect_)
