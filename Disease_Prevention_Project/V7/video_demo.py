@@ -85,7 +85,7 @@ def result_hud(frame_size, locations, results, tolerance,
                     (frame_size[0], frame_size[1])],
                    fill=rectColor)
 
-    for (top, right, bottom, left), (name, _, distance)\
+    for (top, right, bottom, left), (name, _, distance, passed_ratio)\
             in zip(locations, results):
         top *= location_scale
         right *= location_scale
@@ -101,7 +101,10 @@ def result_hud(frame_size, locations, results, tolerance,
                        fill=rectColor, outline=None)
         textColor = (0, 0, 0)
         draw.text((left + 6, bottom),
-                  str(f'{name}, Diff: {distance: > .4f}'),
+                  f'{name} 最小差異 {distance: > .3f}',
+                  font=font, fill=textColor)
+        draw.text((left + 6, bottom + 20),
+                  f'通過{passed_ratio * 100: > .0f}%',
                   font=font, fill=textColor)
     return hud
 
@@ -161,28 +164,29 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
         matched_indices = [(row, col) for row, col in indices
                            if prev_distances[row][col][
             prev_matched_ids[row][col]] <= tolerance]
-        if len(matched_indices) > 0:
+        if len(matched_indices) >= len(indices) * 0.3:
             ids = [prev_matched_ids[row][col] for row, col in matched_indices]
             id = Counter(ids).most_common(1)[0][0]
             person_id = user_profiles[id][1]
             name = user_profiles[id][2]
             distance = np.mean(
                 [prev_distances[row][col][prev_matched_ids[row][col]]
-                    for row, col in matched_indices
-                    if prev_matched_ids[row][col] == id]
+                 for row, col in matched_indices
+                 if prev_matched_ids[row][col] == id]
             )
         else:
             person_id = 'guest'
             name = '訪客'
             distance = min([prev_distances[row][col].min()
                             for row, col in indices])
-        results.append((name, person_id, distance))
+        results.append((name, person_id, distance,
+                        len(matched_indices) / len(indices)))
     return results
 
 
 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
 def record_new_measures(time_dict, now, results, db_name):
-    new_people = [(name, id) for name, id, _ in results
+    new_people = [(name, id) for name, id, _, _ in results
                   if is_new_person(time_dict, name, now)]
     for name, id in new_people:
         data = fetch_newest_temperature_db(db_name)
@@ -201,7 +205,7 @@ def main():
     else:
         video_num = 0
     database_name = './Release/teacher.db'
-    tolerance = 0.385
+    tolerance = 0.38
     buffer_duration = 2  # Frames within this duration will be buffered
     # [[en_face, ID, Name], ...]
     user_profiles = get_user_profiles(database_name)
@@ -230,8 +234,7 @@ def main():
     detect_rect_ = detect_rect((video_width, video_height),
                                detect_edge_ratio)
     font = ImageFont.truetype(
-        str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
-
+        str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 18)
     for frame_count in itertools.count():
         while True:
             input_key = cv2.waitKey(1)
@@ -252,12 +255,11 @@ def main():
                                     detect_rect_)
             rgb_frame = Image.fromarray(cv2.cvtColor(
                 frame, cv2.COLOR_BGR2RGB)).convert('RGBA')
-            rgb_frame = Image.alpha_composite(
+            top, right, bottom, left = detect_rect_
+            result_frame = np.asarray(Image.alpha_composite(
                 Image.alpha_composite(rgb_frame, info_Hud),
                 result_Hud
-            )
-            result_frame = np.asarray(rgb_frame)[
-                detect_rect_[0]:, detect_rect_[3]:detect_rect_[1]]
+            ).crop((left, top, right, video_height)))
             cv2_result_frame = cv2.cvtColor(result_frame, cv2.COLOR_RGB2BGR)
             cv2.imshow('Video', cv2_result_frame)
             small_frame = cv2.resize(
@@ -307,7 +309,7 @@ def main():
                 results = new_results
             now = datetime.now()
             record_new_measures(time_dict, now, results, database_name)
-            for name, _, _ in results:
+            for name, _, _, _ in results:
                 time_dict[name] = now
     pool.join()
     print('Main ended')
