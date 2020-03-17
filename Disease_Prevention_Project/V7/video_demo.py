@@ -75,7 +75,7 @@ def draw_results(frame, locations, results, tolerance,
     rectColor = (0, 0, 255)
     draw = ImageDraw.Draw(rgb_frame)
     draw.rectangle([(detect_left, detect_top), (detect_right, detect_bottom)],
-                   fill=None, outline=rectColor, width=5)
+                   fill=None, outline=rectColor, width=1)
     for (top, right, bottom, left), (name, _, distance)\
             in zip(locations, results):
         top *= scale
@@ -98,13 +98,20 @@ def draw_results(frame, locations, results, tolerance,
     return result_frame
 
 
+# def detect_rect(frame_size, ratio):
+#     frame_height, frame_width = frame_size
+#     return (frame_height / ratio,
+#             frame_width * (ratio - 1) / ratio,
+#             frame_height * (ratio - 1) / ratio,
+#             frame_width / ratio)
+
+# 
 def detect_rect(frame_size, ratio):
     frame_height, frame_width = frame_size
-    return (frame_height / ratio,
+    return (0,
             frame_width * (ratio - 1) / ratio,
-            frame_height * (ratio - 1) / ratio,
+            frame_height,
             frame_width / ratio)
-
 
 def in_detect_range(face_rect, detect_rect_):
     detect_top, detect_right, detect_bottom, detect_left = detect_rect_
