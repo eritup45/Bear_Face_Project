@@ -64,8 +64,7 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
 
 
 def info_hud(frame_size, font, location_scale, detect_rect_):
-    detect_top, detect_right, detect_bottom, detect_left = [
-        x * location_scale for x in detect_rect_]
+    detect_top, detect_right, detect_bottom, detect_left = detect_rect_
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(hud)
     textColor = (0, 0, 255)
@@ -79,8 +78,7 @@ def result_hud(frame_size, locations, results, tolerance,
                font, location_scale, detect_rect_):
 
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
-    detect_top, detect_right, detect_bottom, detect_left = [
-        x * location_scale for x in detect_rect_]
+    detect_top, detect_right, detect_bottom, detect_left = detect_rect_
     rectColor = (0, 0, 0, 255)
     draw = ImageDraw.Draw(hud)
     draw.rectangle([(0, detect_bottom),
@@ -117,9 +115,9 @@ def detect_rect(frame_size, ratio):
             frame_width / ratio)
 
 
-def in_detect_range(face_rect, detect_rect_):
+def in_detect_range(face_rect, detect_rect_, face_scale):
     detect_top, detect_right, detect_bottom, detect_left = detect_rect_
-    top, right, bottom, left = face_rect
+    top, right, bottom, left = [x * face_scale for x in face_rect]
     return (top > detect_top
             and right < detect_right
             and bottom < detect_bottom
@@ -182,6 +180,17 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
     return results
 
 
+# 若根據偵測時間判斷為新的人，將資料寫進資料庫
+def record_new_measures(time_dict, now, results, db_name):
+    new_people = [(name, id) for name, id, _ in results
+                  if is_new_person(time_dict, name, now)]
+    for name, id in new_people:
+        data = fetch_newest_temperature_db(db_name)
+        measure_info_profile = [id] + list(data)
+        Insert_Measure_Info(db_name, measure_info_profile)
+        print(f'寫入:{name}')
+
+
 def main():
     # Fix pyinstaller's bug
     mp.freeze_support()
@@ -219,9 +228,8 @@ def main():
     video_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     video_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     detect_edge_ratio = 12
-    detect_rect_ = detect_rect(
-        (int(video_width * frame_scale), int(video_height * frame_scale)),
-        detect_edge_ratio)
+    detect_rect_ = detect_rect((int(video_width), int(video_height)),
+                               detect_edge_ratio)
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
 
@@ -239,7 +247,7 @@ def main():
                 known_face_encodings = [x[0] for x in user_profiles]
 
             info_Hud = info_hud((video_width, video_height), font,
-                                1 / frame_scale, detect_rect_)
+                                detect_rect_)
             result_Hud = result_hud((video_width, video_height), locations,
                                     results, tolerance, font, 1 / frame_scale,
                                     detect_rect_)
@@ -249,17 +257,16 @@ def main():
                 Image.alpha_composite(rgb_frame, info_Hud),
                 result_Hud
             )
-            detect_rect_scaled = [int(x / frame_scale) for x in detect_rect_]
             result_frame = np.asarray(rgb_frame)[
-                detect_rect_scaled[0]:,
-                detect_rect_scaled[3]:detect_rect_scaled[1]]
+                detect_rect_[0]:, detect_rect_[3]:detect_rect_[1]]
             cv2_result_frame = cv2.cvtColor(result_frame, cv2.COLOR_RGB2BGR)
             cv2.imshow('Video', cv2_result_frame)
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
             rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-            new_locations = [x for x in face_recognition.face_locations(
-                rgb_small_frame) if in_detect_range(x, detect_rect_)]
+            new_locations = [
+                x for x in face_recognition.face_locations(rgb_small_frame)
+                if in_detect_range(x, detect_rect_, 1 / frame_scale)]
             if len(new_locations) > 0 or (dt.datetime.now() - last_record_time
                                           ).total_seconds() > buffer_duration:
                 break
@@ -301,15 +308,7 @@ def main():
             if new_results is not None:
                 results = new_results
             now = datetime.now()
-            new_people = [(name, id) for name, id, _ in results
-                          if is_new_person(time_dict, name, now)]
-            # 若根據偵測時間判斷為新的人，將資料寫進資料庫
-            for name, id in new_people:
-                data = fetch_newest_temperature_db(database_name)
-                measure_info_profile = [id] + list(data)
-                Insert_Measure_Info(database_name, measure_info_profile)
-                print(f'寫入:{name}')
-
+            record_new_measures(time_dict, now, results, database_name)
             for name, _, _ in results:
                 time_dict[name] = now
     pool.join()
