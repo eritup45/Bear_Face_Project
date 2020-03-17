@@ -2,7 +2,7 @@ import face_recognition
 import sqlite3
 from pathlib import Path
 
-from encode import read_image_name, adapt_list
+from database_utils import adapt_list
 
 def Insert_one_face_in_db(database, img_name, user_p):
     conn = sqlite3.connect(database)

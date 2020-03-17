@@ -12,6 +12,7 @@ import multiprocessing as mp
 import psutil
 # import yappi
 
+from set_camera import set_cam
 from get_db import get_user_profiles
 from Combine_database import fetch_newest_temperature_db
 from get_file_path import get_file_path
@@ -200,10 +201,7 @@ def main():
     mp.freeze_support()
     mp.set_start_method('spawn')
 
-    if len(sys.argv) >= 3:
-        video_num = int(sys.argv[2])
-    else:
-        video_num = 0
+    video_num = set_cam()
     database_name = './Release/teacher.db'
     tolerance = 0.38
     buffer_duration = 2  # Frames within this duration will be buffered
@@ -248,8 +246,7 @@ def main():
                 user_profiles = get_user_profiles(database_name)
                 known_face_encodings = [x[0] for x in user_profiles]
 
-            info_Hud = info_hud((video_width, video_height), font,
-                                detect_rect_)
+            info_Hud = info_hud((video_width, video_height), font, detect_rect_)
             result_Hud = result_hud((video_width, video_height), locations,
                                     results, tolerance, font, 1 / frame_scale,
                                     detect_rect_)
