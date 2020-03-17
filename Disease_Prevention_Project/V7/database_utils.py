@@ -1,7 +1,7 @@
+import numpy as np
+import json
 
 # Convert np to json, in order to store in sqlite
-
-
 def adapt_list(list_of_face_encodings):
     cvt_list_of_face_encodings = []
     for i in range(len(list_of_face_encodings)):
@@ -15,8 +15,6 @@ def adapt_list(list_of_face_encodings):
     return cvt_list_of_face_encodings
 
 # Convert json to list
-
-
 def convert_list(cvt_list_of_face_encodings):
     # my_list = []
 

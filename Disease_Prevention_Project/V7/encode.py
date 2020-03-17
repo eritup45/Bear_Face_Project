@@ -1,5 +1,4 @@
 import face_recognition
-import numpy as np
 from pathlib import Path
 import sqlite3
 import json

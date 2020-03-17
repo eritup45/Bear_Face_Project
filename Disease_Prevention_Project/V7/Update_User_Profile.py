@@ -2,7 +2,7 @@ import face_recognition
 import sqlite3
 from pathlib import Path
 
-from database_utils import read_image_name, adapt_list
+from database_utils import adapt_list
 
 
 def Update_one_face_in_db(database, img_name, user_p):
