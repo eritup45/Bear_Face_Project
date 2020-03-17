@@ -67,21 +67,24 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
     return same_indices
 
 
-def draw_results(frame, locations, results, tolerance,
-                 font, scale, detect_rect_):
-    rgb_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+def result_hud(frame_size, locations, results, tolerance,
+               font, location_scale, detect_rect_):
+
+    hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     detect_top, detect_right, detect_bottom, detect_left = [
-        x * scale for x in detect_rect_]
-    rectColor = (0, 0, 255)
-    draw = ImageDraw.Draw(rgb_frame)
-    draw.rectangle([(detect_left, detect_top), (detect_right, detect_bottom)],
-                   fill=None, outline=rectColor, width=5)
+        x * location_scale for x in detect_rect_]
+    rectColor = (0, 0, 0, 255)
+    draw = ImageDraw.Draw(hud)
+    draw.rectangle([(0, detect_bottom),
+                    (frame_size[0], frame_size[1])],
+                   fill=rectColor)
+
     for (top, right, bottom, left), (name, _, distance)\
             in zip(locations, results):
-        top *= scale
-        right *= scale
-        bottom *= scale
-        left *= scale
+        top *= location_scale
+        right *= location_scale
+        bottom *= location_scale
+        left *= location_scale
 
         match_state = distance < tolerance
         rectColor = (0, 255, 0) if match_state else (255, 0, 0)
@@ -94,12 +97,11 @@ def draw_results(frame, locations, results, tolerance,
         draw.text((left + 6, bottom),
                   str(f'{name}, Diff: {distance: > .4f}'),
                   font=font, fill=textColor)
-    result_frame = cv2.cvtColor(np.asarray(rgb_frame), cv2.COLOR_RGB2BGR)
-    return result_frame
+    return hud
 
 
 def detect_rect(frame_size, ratio):
-    frame_height, frame_width = frame_size
+    frame_width, frame_height = frame_size
     return (frame_height / ratio,
             frame_width * (ratio - 1) / ratio,
             frame_height * (ratio - 1) / ratio,
@@ -117,8 +119,8 @@ def in_detect_range(face_rect, detect_rect_):
 
 def is_new_person(time_dict, name, now):
     span = 5.0 if name == '訪客' else 10.0
-    return (now - time_dict.setdefault(name, dt.datetime.min))\
-        .total_seconds() > span
+    return (now - time_dict.setdefault(
+        name, dt.datetime.min)).total_seconds() > span
 
 
 def encode(frame, locations):
@@ -172,16 +174,16 @@ def main():
 
     available_cpus = psutil.Process().cpu_affinity()
     cpu_count = len(available_cpus)
-    encode_request_queue = mp.Queue(maxsize=cpu_count)
-    encode_result_queue = mp.Queue()
     pool = mp.Pool(processes=cpu_count)
 
     video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
-    video_height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT) * frame_scale
-    video_width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH) * frame_scale
-    detect_edge_ratio = 6.5
-    detect_rect_ = detect_rect((video_height, video_width), detect_edge_ratio)
+    video_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    video_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+    detect_edge_ratio = 12
+    detect_rect_ = detect_rect(
+        (int(video_width * frame_scale), int(video_height * frame_scale)),
+        detect_edge_ratio)
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 20)
 
@@ -197,16 +199,23 @@ def main():
                 Update_User_Photo(database_name, frame)
                 user_profiles = get_user_profiles(database_name)
                 known_face_encodings = [x[0] for x in user_profiles]
+            hud = result_hud((video_width, video_height), locations,
+                             results, tolerance, font, 1 / frame_scale,
+                             detect_rect_)
+            rgb_frame = Image.fromarray(cv2.cvtColor(
+                frame, cv2.COLOR_BGR2RGB)).convert('RGBA')
+            result_frame = Image.alpha_composite(rgb_frame, hud)
+            cv2_result_frame = cv2.cvtColor(
+                np.asarray(result_frame), cv2.COLOR_RGB2BGR)
+            detect_rect_scaled = [int(x / frame_scale) for x in detect_rect_]
+            cv2.imshow('Video', cv2_result_frame[
+                detect_rect_scaled[0]:,
+                detect_rect_scaled[3]:detect_rect_scaled[1]])
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
-            rgb_frame = small_frame[:, :, ::-1]
-            result_frame = draw_results(
-                frame, locations, results, tolerance,
-                font, 1 / frame_scale, detect_rect_)
-            cv2.imshow('Video', result_frame)
-            new_locations = [x for x
-                             in face_recognition.face_locations(rgb_frame)
-                             if in_detect_range(x, detect_rect_)]
+            rgb_small_frame = small_frame[:, :, ::-1]
+            new_locations = [x for x in face_recognition.face_locations(
+                rgb_small_frame) if in_detect_range(x, detect_rect_)]
             if len(new_locations) > 0 or (dt.datetime.now() - last_record_time
                                           ).total_seconds() > buffer_duration:
                 break
@@ -224,7 +233,7 @@ def main():
         prev_locations = push_list_queue(
             prev_locations, [locations], frame_buffer_size)
         prev_frames = push_list_queue(
-            prev_frames, [rgb_frame], frame_buffer_size)
+            prev_frames, [rgb_small_frame], frame_buffer_size)
         # Generate results every cpu_count frames
         if record_frame_count % cpu_count == 0:
             encodings = pool.starmap(
@@ -258,8 +267,6 @@ def main():
             now = datetime.now()
             new_people = [(name, id) for name, id, _ in results
                           if is_new_person(time_dict, name, now)]
-            old_people = [(name, id) for name, id, _ in results
-                          if not is_new_person(time_dict, name, now)]
             # 若根據偵測時間判斷為新的人，將資料寫進資料庫
             for name, id in new_people:
                 data = fetch_newest_temperature_db(database_name)
