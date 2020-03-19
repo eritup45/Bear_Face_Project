@@ -26,7 +26,7 @@ class RecognitionResult():
     name: str
     person_id: str
     distance: float
-    passed_ratio: float
+    matched_ratio: float
 
 
 # Return the index of the minimum distance
@@ -88,12 +88,17 @@ def result_hud(frame_size, locations, results: List[RecognitionResult],
 
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     detect_top, detect_right, detect_bottom, detect_left = detect_rect_
-    rectColor = (0, 0, 0, 255)
+    rectColor = (0, 0, 255, 128)
     draw = ImageDraw.Draw(hud)
-    draw.rectangle([(0, detect_bottom),
-                    (frame_size[0], frame_size[1])],
-                   fill=rectColor)
-
+    top, right, bottom, left = detect_rect_
+    def to_right(x): return x % 2 == 0
+    def to_bottom(x): return x < 2
+    for i, (x, y) in enumerate([(left, top), (right, top),
+                                (left, bottom), (right, bottom)]):
+        x_factor = 1 if to_right(i) else -1
+        y_factor = 1 if to_bottom(i) else -1
+        draw.line([(x, y + 20 * y_factor), (x, y), (x + 20 * x_factor, y)],
+                  fill=rectColor, width=3)
     for (top, right, bottom, left), result in zip(locations, results):
         top *= location_scale
         right *= location_scale
@@ -109,10 +114,10 @@ def result_hud(frame_size, locations, results: List[RecognitionResult],
                        fill=rectColor, outline=None)
         textColor = (0, 0, 0)
         draw.text((left + 6, bottom),
-                  f'{result.name} 最小差異 {result.distance: > .3f}',
+                  f'{result.name}',
                   font=font, fill=textColor)
         draw.text((left + 6, bottom + 20),
-                  f'通過{result.passed_ratio * 100: > .0f}%',
+                  f'差異 {result.distance: > .3f}',
                   font=font, fill=textColor)
     return hud
 
@@ -162,7 +167,7 @@ def get_available_cpu_count():
 # Get the indices of encodings that have the most matching
 def detection_results(user_profiles, prev_locations, prev_encodings,
                       prev_distances, prev_closest_ids, tolerance,
-                      minimum_pass_ratio) -> Optional[List[RecognitionResult]]:
+                      min_matched_ratio) -> Optional[List[RecognitionResult]]:
     indices_list = same_face_indices(prev_encodings, prev_locations, tolerance)
     if False in [len(x) >= len(prev_encodings) // 2 for x in indices_list]:
         return None
@@ -173,8 +178,8 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
         matched_indices = [i for i, (distance, closest_id)
                            in enumerate(zip(distances, closest_ids))
                            if distance[closest_id] <= tolerance]
-        passed_ratio = len(matched_indices) / len(indices)
-        if passed_ratio >= minimum_pass_ratio:
+        matched_ratio = len(matched_indices) / len(indices)
+        if matched_ratio >= min_matched_ratio:
             ids = [closest_ids[i] for i in matched_indices]
             id_ = Counter(ids).most_common(1)[0][0]
             person_id = user_profiles[id_][1]
@@ -188,7 +193,7 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
             name = '訪客'
             distance = min([x.min() for x in distances])
         results.append(RecognitionResult(
-            name, person_id, distance, passed_ratio))
+            name, person_id, distance, matched_ratio))
     return results
 
 
@@ -197,7 +202,6 @@ def insert_measure(result: RecognitionResult, db_name):
     data = fetch_newest_temperature_db(db_name)
     measure_info_profile = [result.person_id] + list(data)
     Insert_Measure_Info(db_name, measure_info_profile)
-    print(f'寫入:{result.name}')
 
 
 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
@@ -217,7 +221,7 @@ def main():
     video_num = set_cam()
     database_name = './Release/teacher.db'
     tolerance = 0.38
-    minimum_pass_ratio = 0.3
+    min_matched_ratio = 0.3
     buffer_duration = 2  # Frames within this duration will be buffered
     # [[en_face, ID, Name], ...]
     user_profiles = get_user_profiles(database_name)
@@ -271,7 +275,7 @@ def main():
             result_frame = np.asarray(Image.alpha_composite(
                 Image.alpha_composite(rgb_frame, info_hud_),
                 result_hud_
-            ).crop((left, top, right, video_height)))
+            ))
             cv2_result_frame = cv2.cvtColor(result_frame, cv2.COLOR_RGB2BGR)
             cv2.imshow('Video', cv2_result_frame)
             small_frame = cv2.resize(
@@ -299,13 +303,11 @@ def main():
             prev_frames, [rgb_small_frame], frame_buffer_size)
         # Generate results every cpu_count frames
         if frame_count % cpu_count == cpu_count - 1:
-            test = datetime.now()
             encodings = pool.starmap(
                 encode,
                 [(prev_frames[i], prev_locations[i])
                  for i in range(-cpu_count, 0)]
             )
-            print(datetime.now() - test)
             distances = [[face_recognition.face_distance(
                 known_face_encodings, x) for x in y] for y in encodings]
             matched_ids = [[find_closest(x) for x in y] for y in distances]
@@ -318,7 +320,7 @@ def main():
             new_results = detection_results(
                 user_profiles, prev_locations, prev_encodings,
                 prev_distances, prev_closest_ids, tolerance,
-                minimum_pass_ratio
+                min_matched_ratio
             )
             if new_results is not None:
                 results = new_results
