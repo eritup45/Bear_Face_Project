@@ -90,7 +90,7 @@ def write_face_encodings_in_db(database, img_directory, excel_file):
 
         # 查詢面部編碼
         list_of_face_encodings = face_recognition.face_encodings(
-            image, num_jitters=10, model="large")
+            image, num_jitters=10)
         # 在 User_Profile 中插入資料
         if adapt_list(list_of_face_encodings) is None:
             print(f"Can\'t find face: {filename}")
