@@ -77,7 +77,7 @@ def info_hud(frame_size, font, detect_rect_):
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(hud)
     textColor = (0, 0, 255)
-    draw.text((detect_left + 10, detect_top + 10),
+    draw.text((detect_left + 10, detect_bottom + 10),
               '按s更新圖片',
               font=font, fill=textColor)
     return hud
