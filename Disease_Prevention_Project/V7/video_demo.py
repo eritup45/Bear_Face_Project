@@ -21,7 +21,7 @@ from Insert_Measure_Info import Insert_Measure_Info
 from Update_User_Photo import Update_User_Photo
 
 
-@dataclass
+@dataclass(frozen=True)
 class RecognitionResult():
     name: str
     person_id: str
@@ -191,16 +191,21 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
     return results
 
 
+# Insert measure into database
+def insert_measure(result: RecognitionResult, db_name):
+    data = fetch_newest_temperature_db(db_name)
+    measure_info_profile = [result.person_id] + list(data)
+    Insert_Measure_Info(db_name, measure_info_profile)
+    print(f'寫入:{result.name}')
+
+
 # 若根據偵測時間判斷為新的人，將資料寫進資料庫
 def record_new_measures(time_dict, now, results: List[RecognitionResult],
                         db_name):
-    new_people = [(result.name, result.person_id) for result in results
-                  if is_new_person(time_dict, result.person_id, now)]
-    for name, id_ in new_people:
-        data = fetch_newest_temperature_db(db_name)
-        measure_info_profile = [id_] + list(data)
-        Insert_Measure_Info(db_name, measure_info_profile)
-        print(f'寫入:{name}')
+    new_results = [x for x in results
+                   if is_new_person(time_dict, x.person_id, now)]
+    for result in new_results:
+        insert_measure(result, db_name)
 
 
 def main():
