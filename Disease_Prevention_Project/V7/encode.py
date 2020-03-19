@@ -11,6 +11,8 @@ from database_utils import adapt_list, convert_list
 # Return
 # num_classes: how many images' class
 # image_name: images' name
+
+
 def read_image_name(directory):
     num_classes = 0
     index = []
@@ -25,6 +27,7 @@ def read_image_name(directory):
         num_classes += 1
 
     return num_classes, index, image_name
+
 
 def print_database(database):
     # 連接資料庫(必寫)
@@ -86,12 +89,13 @@ def write_face_encodings_in_db(database, img_directory, excel_file):
             continue
 
         # 查詢面部編碼
-        list_of_face_encodings = face_recognition.face_encodings(image)
+        list_of_face_encodings = face_recognition.face_encodings(
+            image, num_jitters=10, model="large")
         # 在 User_Profile 中插入資料
         if adapt_list(list_of_face_encodings) is None:
             print(f"Can\'t find face: {filename}")
         else:
-            # Because ID is PRIMARY KEY, just pick one photo. 
+            # Because ID is PRIMARY KEY, just pick one photo.
             for i, data in enumerate(adapt_list(list_of_face_encodings)):
                 if i >= 1:
                     print('Find two faces in: ', filename)
@@ -99,13 +103,15 @@ def write_face_encodings_in_db(database, img_directory, excel_file):
                 c.execute("INSERT INTO User_Profile (Encoded_face, Unit_id, Unit_name, ID, Name, Title_name) \
                     VALUES ('{}', '{}', '{}', '{}', '{}', '{}')".format(data, Unit_id, Unit_name, ID, Name, Title_name))
                 # print("INSERT succuess: ", filename)
-                          
+
     # 寫入資料庫(必寫)
     conn.commit()
     conn.close()
 
 # Only accept Excel in form (Unit_id, Unit_name, ID, Name, Title_name, dist_type)
 # Pictures' name should be "same" as ID.
+
+
 def main():
     args = parse_args()
     database = args.db
@@ -114,6 +120,7 @@ def main():
 
     write_face_encodings_in_db(database, img_directory, excel_file)
     # print_database(database)
+
 
 if __name__ == "__main__":
     main()

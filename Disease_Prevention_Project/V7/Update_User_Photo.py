@@ -63,7 +63,6 @@ def Update_User_Photo(database, frame):
         try:
             ID = easygui.enterbox(
                 msg="與他人撞名\n請輸入：\"身分證後五碼\"\n", title='新增/更新臉部資料')
-            print('ID:', ID)
             if len(ID) != 5:
                 easygui.msgbox('Insert Error, please enter \"身分證後五碼\" again.')
                 return
