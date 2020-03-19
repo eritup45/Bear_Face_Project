@@ -12,13 +12,14 @@ from Insert_User_Profile import Insert_one_face_in_db
 
 
 def five_last_ID(ID):
-    return str(ID[7:10])
+    return str(ID[-5:])
 
 # Return path of photo and save in ./pictures
 def save_photo(ID, pic_dir, frame):
-    # cv2.imwrite(str(Path(pic_dir).joinpath(str(ID) + ".jpg")), frame)
-    cv2.imencode('.jpg', frame)[1].tofile(str(Path(pic_dir).joinpath(str(ID) + ".jpg")))
-    return str(Path(pic_dir).joinpath(str(ID) + ".jpg"))
+    # Got same name
+    if ID is not None:
+        cv2.imencode('.jpg', frame)[1].tofile(str(Path(pic_dir).joinpath(str(ID) + ".jpg")))
+        return str(Path(pic_dir).joinpath(str(ID) + ".jpg"))
 
 # Update new face in databse 
 def Update_User_Photo(database, frame):
@@ -31,24 +32,15 @@ def Update_User_Photo(database, frame):
         os.makedirs(pic_dir)
 
     try:
-        new_User = easygui.enterbox(msg="請輸入：\"姓名 身分證後五碼\" (中間請用空格隔開)\n"\
+        new_User = easygui.enterbox(msg="請輸入：\"姓名\"\n"\
             ,title='新增/更新臉部資料').split()
-        if len(new_User) != 2:
-            print('Insert Error')
-            easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
-            return
     except:
-        easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
+        easygui.msgbox('Insert Error, please enter \"姓名\" again.')
         return
 
-    ID = str(new_User[1])
     Name = str(new_User[0])
     # Only 5 words accepted
-    if len(ID) != 5:
-        easygui.msgbox('Insert Error, please enter \"姓名 身分證後五碼\" again.')
-        return
     
-    photo_path = save_photo(ID, pic_dir, frame)
     conn = sqlite3.connect(database)
     c = conn.cursor()
     data_list = []
@@ -60,7 +52,6 @@ def Update_User_Photo(database, frame):
     conn.commit()
     conn.close()
     # ID not found
-    user_profile = [None, None, ID, Name, None]
     if len(data_list) == 0:
         easygui.msgbox('未找到符合身分。')
         # if(Insert_one_face_in_db(database, photo_path, user_profile)):
@@ -69,12 +60,23 @@ def Update_User_Photo(database, frame):
         #     easygui.msgbox('臉部偵測錯誤，請重新檢測!')
     # Got the same name, find ID's last 5 words 
     elif len(data_list) > 1:
+        try:
+            ID = easygui.enterbox(
+                msg="與他人撞名\n請輸入：\"身分證後五碼\"\n", title='新增/更新臉部資料')
+            if len(ID) != 5:
+                easygui.msgbox('Insert Error, please enter \"身分證後五碼\" again.')
+                return
+        except:
+            easygui.msgbox('Insert Error, please enter \"身分證後五碼\" again.')
+            return
+
         # Find the same ID by last 5 words, and get the correct user_profile
         for tmp_Unit_id, tmp_Unit_name, tmp_ID, tmp_Name, tmp_Title_name in data_list:
             if five_last_ID(tmp_ID) == five_last_ID(ID):
                 user_profile = [tmp_Unit_id, tmp_Unit_name,
                                 tmp_ID, tmp_Name, tmp_Title_name]
                 break
+        photo_path = save_photo(user_profile[2], pic_dir, frame)
         if(Update_one_face_in_db(database, photo_path, user_profile)):
             easygui.msgbox('更新成功!')
         else:
@@ -82,6 +84,7 @@ def Update_User_Photo(database, frame):
     # Normal case
     else:
         user_profile = data_list[0]
+        photo_path = save_photo(user_profile[2], pic_dir, frame)
         if(Update_one_face_in_db(database, photo_path, user_profile)):
             easygui.msgbox('更新成功!')
         else:
