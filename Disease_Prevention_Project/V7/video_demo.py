@@ -148,7 +148,7 @@ def is_new_person(time_dict, person_id, now):
 
 def encode(frame, locations):
     encodings = face_recognition.face_encodings(
-        frame, locations, model="large")
+        frame, locations)
     return encodings
 
 
