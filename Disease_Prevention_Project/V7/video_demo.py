@@ -142,7 +142,8 @@ def is_new_person(time_dict, person_id, now):
 
 
 def encode(frame, locations):
-    encodings = face_recognition.face_encodings(frame, locations)
+    encodings = face_recognition.face_encodings(
+        frame, locations, model="large")
     return encodings
 
 
@@ -298,11 +299,13 @@ def main():
             prev_frames, [rgb_small_frame], frame_buffer_size)
         # Generate results every cpu_count frames
         if frame_count % cpu_count == cpu_count - 1:
+            test = datetime.now()
             encodings = pool.starmap(
                 encode,
                 [(prev_frames[i], prev_locations[i])
                  for i in range(-cpu_count, 0)]
             )
+            print(datetime.now() - test)
             distances = [[face_recognition.face_distance(
                 known_face_encodings, x) for x in y] for y in encodings]
             matched_ids = [[find_closest(x) for x in y] for y in distances]
