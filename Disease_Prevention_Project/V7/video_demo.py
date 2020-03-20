@@ -78,15 +78,16 @@ def info_hud(frame_size, font, detect_rect_):
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(hud)
     textColor = (0, 0, 255)
+    stroke_color = (255, 255, 255)
     draw.text((detect_left + 10, detect_bottom + 10),
               '按s更新圖片',
-              font=font, fill=textColor)
+              font=font, fill=textColor,
+              stroke_fill=stroke_color, stroke_width=2)
     return hud
 
 
 def result_hud(frame_size, locations, results: List[RecognitionResult],
                tolerance, font, location_scale, detect_rect_):
-
     hud = Image.new('RGBA', frame_size, (255, 255, 255, 0))
     detect_top, detect_right, detect_bottom, detect_left = detect_rect_
     rectColor = (0, 0, 255, 128)
@@ -106,7 +107,7 @@ def result_hud(frame_size, locations, results: List[RecognitionResult],
         bottom *= location_scale
         left *= location_scale
 
-        rectColor = (0, 255, 0, 255) if result.matched else (255, 0, 0, 255)
+        rectColor = (0, 255, 0, 192) if result.matched else (255, 0, 0, 192)
         draw.rectangle([(left, top), (right, bottom)],
                        fill=None, outline=rectColor, width=5)
 
