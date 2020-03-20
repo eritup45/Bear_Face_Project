@@ -26,7 +26,7 @@ class RecognitionResult():
     name: str
     person_id: str
     distance: float
-    matched_ratio: float
+    matched: bool
 
 
 # Return the index of the minimum distance
@@ -105,8 +105,7 @@ def result_hud(frame_size, locations, results: List[RecognitionResult],
         bottom *= location_scale
         left *= location_scale
 
-        match_state = result.distance < tolerance
-        rectColor = (0, 255, 0, 255) if match_state else (255, 0, 0, 255)
+        rectColor = (0, 255, 0, 255) if result.matched else (255, 0, 0, 255)
         draw.rectangle([(left, top), (right, bottom)],
                        fill=None, outline=rectColor, width=5)
 
@@ -175,25 +174,24 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
     for indices in indices_list:
         distances = [prev_distances[row][col] for row, col in indices]
         closest_ids = [prev_closest_ids[row][col] for row, col in indices]
-        matched_indices = [i for i, (distance, closest_id)
-                           in enumerate(zip(distances, closest_ids))
-                           if distance[closest_id] <= tolerance]
+        closest_distances = [distance[closest_id] for distance, closest_id
+                             in zip(distances, closest_ids)]
+        matched_indices = [i for i, closest_distance
+                           in enumerate(closest_distances)
+                           if closest_distance <= tolerance]
         matched_ratio = len(matched_indices) / len(indices)
-        if matched_ratio >= min_matched_ratio:
+        matched = matched_ratio >= min_matched_ratio
+        if matched:
             ids = [closest_ids[i] for i in matched_indices]
             id_ = Counter(ids).most_common(1)[0][0]
             person_id = user_profiles[id_][1]
             name = user_profiles[id_][2]
-            distance = np.mean(
-                [distances[i][id_] for i in matched_indices
-                 if closest_ids[i] == id_]
-            )
         else:
             person_id = 'guest'
             name = '訪客'
-            distance = min([x.min() for x in distances])
-        results.append(RecognitionResult(
-            name, person_id, distance, matched_ratio))
+        distance = sorted(closest_distances)[
+            int(len(indices) * min_matched_ratio)]
+        results.append(RecognitionResult(name, person_id, distance, matched))
     return results
 
 
