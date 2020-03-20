@@ -11,6 +11,7 @@ import multiprocessing as mp
 import psutil
 from dataclasses import dataclass
 from typing import List, Optional
+import math
 # import yappi
 
 from set_camera import set_cam
@@ -190,7 +191,7 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
             person_id = 'guest'
             name = '訪客'
         distance = sorted(closest_distances)[
-            int(len(indices) * min_matched_ratio)]
+            int(math.ceil(len(indices) * min_matched_ratio)) - 1]
         results.append(RecognitionResult(name, person_id, distance, matched))
     return results
 
