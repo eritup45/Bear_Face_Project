@@ -213,9 +213,12 @@ class SystemDeviceEnum:
         result = []
         while count > 0:
             result.append(
-                (get_moniker_name(moniker),
-                 get_moniker_device_path(moniker))
+                get_moniker_name(moniker),
             )
+            # result.append(
+            #     (get_moniker_name(moniker),
+            #      get_moniker_device_path(moniker))
+            # )
             moniker, count = filter_enumerator.Next(1)
         return result
 

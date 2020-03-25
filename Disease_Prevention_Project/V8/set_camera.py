@@ -8,13 +8,12 @@ from pygrabber.dshow_graph import FilterGraph
 def set_cam():
     graph = FilterGraph()
     devices = graph.get_input_devices()
-    device_ids = [x[1] for x in devices]
     filepath = "setting.txt"
     if os.path.isfile(filepath):
         print("setting.txt存在。")
         f = open('setting.txt', 'r')
-        device_id = f.read()
-        return device_ids.index(device_id)
+        device = f.read()
+        return devices.index(device)
     else:
         print("setting.txt不存在。")
     for i in range(len(devices)):
@@ -24,7 +23,7 @@ def set_cam():
         value = easygui.ynbox("Is this the video camera?")
         if value is True:
             fp = open("setting.txt", "a")
-            fp.write(str(devices[i][1]))
+            fp.write(str(devices[i]))
             fp.close()
             main_camera.stop()
             cv2.destroyAllWindows()
