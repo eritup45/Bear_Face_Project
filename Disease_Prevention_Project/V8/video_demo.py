@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from typing import List, Optional
 import math
 import functools as ft
+# import subprocess
+import threading
+import os
 # import yappi
 
 from set_camera import set_cam
@@ -22,6 +25,16 @@ from get_file_path import get_file_path
 from Insert_Measure_Info import Insert_Measure_Info
 from Update_User_Photo import Update_User_Photo
 
+def execute_FLIR():
+    # Execute parent folder's .bat file
+    FLIR_start = str(Path(get_file_path()).parent.joinpath("Start_temp.bat"))
+    flag = os.system(FLIR_start)
+    # process = subprocess.Popen(FLIR_start, stderr=subprocess.PIPE)
+    print("end of subprocess call")
+    if not flag:  # 把 exe 執行出來的結果讀回來
+        print("**************************************************************")
+        print('error execute_FLIR')
+        print("**************************************************************")
 
 @dataclass(frozen=True)
 class RecognitionResult():
@@ -219,6 +232,11 @@ def main():
     mp.set_start_method('spawn')
 
     video_num = set_cam()
+
+    t = threading.Thread(target=execute_FLIR)
+    t.start()
+    # execute_FLIR()
+
     database_name = './Release/teacher.db'
     tolerance = 0.38
     min_matched_ratio = 0.3
