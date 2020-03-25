@@ -212,13 +212,13 @@ class SystemDeviceEnum:
         moniker, count = filter_enumerator.Next(1)
         result = []
         while count > 0:
-            result.append(
-                get_moniker_name(moniker),
-            )
             # result.append(
-            #     (get_moniker_name(moniker),
-            #      get_moniker_device_path(moniker))
+            #     get_moniker_name(moniker),
             # )
+            result.append(
+                (get_moniker_name(moniker),
+                 get_moniker_device_path(moniker))
+            )
             moniker, count = filter_enumerator.Next(1)
         return result
 
@@ -597,7 +597,11 @@ def get_moniker_name(moniker):
 def get_moniker_device_path(moniker):
     property_bag = moniker.BindToStorage(
         0, 0, IPropertyBag._iid_).QueryInterface(IPropertyBag)
-    return property_bag.Read("DevicePath", pErrorLog=None)
+    try:
+        result = property_bag.Read("DevicePath", pErrorLog=None)
+    except:
+        result = "None"
+    return result
 
 
 def show_properties(object):
