@@ -24,6 +24,8 @@ from Combine_database import fetch_newest_temperature_db
 from get_file_path import get_file_path
 from Insert_Measure_Info import Insert_Measure_Info
 from Update_User_Photo import Update_User_Photo
+import camera
+
 
 def execute_FLIR():
     # Execute parent folder's .bat file
@@ -35,6 +37,7 @@ def execute_FLIR():
         print("**************************************************************")
         print('error execute_FLIR')
         print("**************************************************************")
+
 
 @dataclass(frozen=True)
 class RecognitionResult():
@@ -232,7 +235,9 @@ def main():
     mp.set_start_method('spawn')
 
     video_num = set_cam()
-
+    if video_num is None:
+        print("未選擇攝影機")
+        return
     t = threading.Thread(target=execute_FLIR)
     t.start()
     # execute_FLIR()
@@ -259,22 +264,27 @@ def main():
     cpu_count = get_available_cpu_count()
     pool = mp.Pool(processes=cpu_count)
 
-    video_capture = cv2.VideoCapture(video_num)
+    main_camera = camera.Camera(video_num)
+    # video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
-    video_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    video_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame = main_camera.read()
+    video_height = int(frame.shape[0])
+    video_width = int(frame.shape[1])
     detect_edge_ratio = 12
     detect_rect_ = detect_rect((video_width, video_height),
                                detect_edge_ratio)
     font = ImageFont.truetype(
         str(Path(get_file_path()).joinpath('NotoSansCJK-Regular222.ttc')), 18)
+
     for frame_count in itertools.count():
         while True:
             input_key = cv2.waitKey(1)
             # Press q to quit
             if input_key & 0xFF == ord('q'):
                 return
-            _, frame = video_capture.read()
+
+            frame = main_camera.read()
+            # _, frame = video_capture.read()
             # press s to update database and save pictures
             if input_key & 0xFF == ord('s'):
                 Update_User_Photo(database_name, frame)
@@ -286,19 +296,17 @@ def main():
                                      [tuple(y / frame_scale for y in x)
                                       for x in locations],
                                      results, tolerance, font, detect_rect_)
-            rgb_frame = Image.fromarray(cv2.cvtColor(
-                frame, cv2.COLOR_BGR2RGB)).convert('RGBA')
+            rgba_frame = Image.fromarray(frame).convert('RGBA')
             result_frame = np.asarray(Image.alpha_composite(
-                Image.alpha_composite(rgb_frame, info_hud_),
+                Image.alpha_composite(rgba_frame, info_hud_),
                 result_hud_
             ))
             cv2_result_frame = cv2.cvtColor(result_frame, cv2.COLOR_RGB2BGR)
             cv2.imshow('Video', cv2_result_frame)
             small_frame = cv2.resize(
                 frame, (0, 0), fx=frame_scale, fy=frame_scale)
-            rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
             new_locations = [
-                x for x in face_recognition.face_locations(rgb_small_frame)
+                x for x in face_recognition.face_locations(small_frame)
                 if in_detect_range([y / frame_scale for y in x], detect_rect_)]
             if len(new_locations) > 0 or (dt.datetime.now() - last_record_time
                                           ).total_seconds() > buffer_duration:
@@ -311,7 +319,7 @@ def main():
         push_buffer = ft.partial(push_list_queue, queue_size=buffer_size)
         prev_times = push_buffer(prev_times, [now])
         prev_locations = push_buffer(prev_locations, [locations])
-        prev_frames = push_buffer(prev_frames, [rgb_small_frame])
+        prev_frames = push_buffer(prev_frames, [small_frame])
         # Generate results every cpu_count frames
         if frame_count % cpu_count == cpu_count - 1:
             encodings = pool.starmap(
@@ -337,6 +345,7 @@ def main():
             for result in results:
                 time_dict[result.person_id] = now
     pool.join()
+    graph.stop()
     print('Main ended')
 
 
