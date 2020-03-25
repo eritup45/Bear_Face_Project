@@ -30,3 +30,4 @@ class Camera:
 
     def stop(self):
         self.graph.stop()
+        self.image_done.clear()

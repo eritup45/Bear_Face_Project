@@ -239,6 +239,7 @@ def main():
         print("未選擇攝影機")
         return
     t = threading.Thread(target=execute_FLIR)
+    t.daemon = True
     t.start()
     # execute_FLIR()
 
@@ -281,6 +282,10 @@ def main():
             input_key = cv2.waitKey(1)
             # Press q to quit
             if input_key & 0xFF == ord('q'):
+                pool.terminate()
+                pool.join()
+                main_camera.stop()
+                print('video demo ended')
                 return
 
             frame = main_camera.read()
@@ -344,9 +349,6 @@ def main():
             record_new_measures(time_dict, now, results, database_name)
             for result in results:
                 time_dict[result.person_id] = now
-    pool.join()
-    graph.stop()
-    print('Main ended')
 
 
 if __name__ == '__main__':
