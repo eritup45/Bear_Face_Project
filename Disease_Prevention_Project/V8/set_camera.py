@@ -8,7 +8,7 @@ from pygrabber.dshow_graph import FilterGraph
 def set_cam():
     graph = FilterGraph()
     devices = graph.get_input_devices()
-    device_ids = [x[1] for x in devices]
+    device_ids = [x[1] if x[1] is not None else x[0] for x in devices]
     filepath = "setting.txt"
     if os.path.isfile(filepath):
         print("setting.txt存在。")

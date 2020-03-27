@@ -600,7 +600,7 @@ def get_moniker_device_path(moniker):
     try:
         result = property_bag.Read("DevicePath", pErrorLog=None)
     except:
-        result = "None"
+        result = None
     return result
 
 
