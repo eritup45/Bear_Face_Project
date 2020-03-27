@@ -1,5 +1,4 @@
 import cv2
-from datetime import datetime
 import face_recognition
 import datetime as dt
 from collections import Counter
@@ -11,6 +10,7 @@ import multiprocessing as mp
 import psutil
 from dataclasses import dataclass
 from typing import List, Optional
+import statistics
 import math
 import functools as ft
 # import subprocess
@@ -74,7 +74,7 @@ def same_face_indices(prev_encodings, prev_locations, tolerance):
                     selected_bools[:-1]
                 )):
             closest = None
-            min_distance = 1.0
+            min_distance = math.inf
             for col in range(len(encodings)):
                 distance = face_recognition.face_distance(
                     [encodings[col]], last_encoding
@@ -177,7 +177,7 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
                       prev_distances, prev_closest_ids, tolerance,
                       min_matched_ratio) -> Optional[List[RecognitionResult]]:
     indices_list = same_face_indices(prev_encodings, prev_locations, tolerance)
-    if False in [len(x) >= len(prev_encodings) // 2 for x in indices_list]:
+    if False in [len(x) >= len(prev_encodings) / 2 for x in indices_list]:
         return None
     results = []
     for indices in indices_list:
@@ -192,9 +192,20 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
         matched = matched_ratio >= min_matched_ratio
         if matched:
             ids = [closest_ids[i] for i in matched_indices]
-            id_ = Counter(ids).most_common(1)[0][0]
-            person_id = user_profiles[id_][1]
-            name = user_profiles[id_][2]
+            all = Counter(ids).most_common()
+            most_commons = [e for e, count in all if count == all[0][1]]
+            min_mean_distance = math.inf
+            min_mean_distance_id = None
+            for common_id in most_commons:
+                mean = statistics.mean([closest_distances[i] for i, id_
+                                        in enumerate(closest_ids)
+                                        if id_ == common_id])
+                if mean < min_mean_distance:
+                    min_mean_distance = mean
+                    min_mean_distance_id = common_id
+            profile = user_profiles[min_mean_distance_id]
+            person_id = profile[1]
+            name = profile[2]
         else:
             person_id = 'guest'
             name = '訪客'
@@ -265,9 +276,8 @@ def main():
     cpu_count = get_available_cpu_count()
     pool = mp.Pool(processes=cpu_count)
 
-    main_camera = camera.Camera(video_num)
-    # video_capture = cv2.VideoCapture(video_num)
     frame_scale = 0.5
+    main_camera = camera.Camera(video_num)
     frame = main_camera.read()
     video_height = int(frame.shape[0])
     video_width = int(frame.shape[1])
@@ -289,7 +299,6 @@ def main():
                 return
 
             frame = main_camera.read()
-            # _, frame = video_capture.read()
             # press s to update database and save pictures
             if input_key & 0xFF == ord('s'):
                 Update_User_Photo(database_name, frame)
@@ -327,11 +336,13 @@ def main():
         prev_frames = push_buffer(prev_frames, [small_frame])
         # Generate results every cpu_count frames
         if frame_count % cpu_count == cpu_count - 1:
+            # last = dt.datetime.now()
             encodings = pool.starmap(
                 encode,
                 [(prev_frames[i], prev_locations[i])
                  for i in range(-cpu_count, 0)]
             )
+            # print(dt.datetime.now() - last)
             distances = [[face_recognition.face_distance(
                 known_face_encodings, x) for x in y] for y in encodings]
             matched_ids = [[find_closest(x) for x in y] for y in distances]
@@ -345,7 +356,7 @@ def main():
             )
             if new_results is not None:
                 results = new_results
-            now = datetime.now()
+            now = dt.datetime.now()
             record_new_measures(time_dict, now, results, database_name)
             for result in results:
                 time_dict[result.person_id] = now
