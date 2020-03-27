@@ -191,18 +191,21 @@ def detection_results(user_profiles, prev_locations, prev_encodings,
         matched_ratio = len(matched_indices) / len(indices)
         matched = matched_ratio >= min_matched_ratio
         if matched:
-            ids = [closest_ids[i] for i in matched_indices]
-            all = Counter(ids).most_common()
-            most_commons = [e for e, count in all if count == all[0][1]]
+            matched_closest_ids = [closest_ids[i] for i in matched_indices]
+            matched_closest_distances = [closest_distances[i]
+                                         for i in matched_indices]
+            id_counts = Counter(matched_closest_ids).most_common()
+            most_ids = [e for e, count in id_counts
+                        if count == id_counts[0][1]]
             min_mean_distance = math.inf
             min_mean_distance_id = None
-            for common_id in most_commons:
-                mean = statistics.mean([closest_distances[i] for i, id_
-                                        in enumerate(closest_ids)
-                                        if id_ == common_id])
+            for most_id in most_ids:
+                mean = statistics.mean([matched_closest_distances[i] for i, id_
+                                        in enumerate(matched_closest_ids)
+                                        if id_ == most_id])
                 if mean < min_mean_distance:
                     min_mean_distance = mean
-                    min_mean_distance_id = common_id
+                    min_mean_distance_id = most_id
             profile = user_profiles[min_mean_distance_id]
             person_id = profile[1]
             name = profile[2]
